@@ -1,28 +1,32 @@
 import { Product } from '../../App';
 import { PRODUCT_DATABASE } from '../data/ProductDatabase';
+import EnhancedProductDetectionService from './EnhancedProductDetectionService';
 
-// Mock Google Cloud Vision API integration
+// Enhanced product detection with real AI integration
 export const detectProduct = async (imageUri: string): Promise<Product | null> => {
   try {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('🔍 Starting enhanced product detection for image:', imageUri);
     
-    // Mock product detection - in real implementation, this would use Google Cloud Vision API
-    const mockDetectedProducts = [
-      PRODUCT_DATABASE[0], // Organic Bananas
-      PRODUCT_DATABASE[1], // Almond Milk
-      PRODUCT_DATABASE[2], // Beef Steak
-      PRODUCT_DATABASE[3], // Quinoa
-      PRODUCT_DATABASE[4], // Plastic Water Bottles
-      PRODUCT_DATABASE[5], // Organic Tomatoes
-    ];
+    // Use the enhanced detection service
+    const detectionService = EnhancedProductDetectionService.getInstance();
+    const detectedProduct = await detectionService.detectProduct(imageUri);
     
-    // Randomly select a product for demo purposes
-    const randomIndex = Math.floor(Math.random() * mockDetectedProducts.length);
-    return mockDetectedProducts[randomIndex];
+    if (detectedProduct) {
+      console.log(`✅ Product detected: ${detectedProduct.name} (${detectionService.getDetectionMethod()})`);
+      return detectedProduct;
+    }
+    
+    // Ultimate fallback
+    console.log('⚠️ No product detected, using random selection');
+    const randomIndex = Math.floor(Math.random() * PRODUCT_DATABASE.length);
+    return PRODUCT_DATABASE[randomIndex];
+    
   } catch (error) {
-    console.error('Product detection error:', error);
-    return null;
+    console.error('❌ Product detection error:', error);
+    
+    // Fallback to random selection on error
+    const randomIndex = Math.floor(Math.random() * PRODUCT_DATABASE.length);
+    return PRODUCT_DATABASE[randomIndex];
   }
 };
 

@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
+import { RNCamera } from 'react-native-camera';
+import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType } from 'react-native-image-picker';
 import { Product } from '../../App';
 import { detectProduct } from '../services/ProductService';
 
@@ -53,48 +55,76 @@ const CameraView: React.FC<CameraViewProps> = ({ onProductDetected, onClose }) =
     try {
       setIsScanning(false);
       
-      // Simulate product detection with mock data
-      const mockProducts = [
-        {
-          id: '1',
-          name: 'Organic Bananas',
-          brand: 'Fresh Farm',
-          category: 'Fruits',
-          image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=300',
-          carbonFootprint: 0.8,
-          waterUsage: 160,
-          foodMiles: 1200,
-          packagingImpact: 2,
-          sustainabilityScore: 85,
-          supplyChain: []
-        },
-        {
-          id: '2',
-          name: 'Almond Milk',
-          brand: 'EcoDairy',
-          category: 'Dairy Alternatives',
-          image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300',
-          carbonFootprint: 0.7,
-          waterUsage: 384,
-          foodMiles: 800,
-          packagingImpact: 3,
-          sustainabilityScore: 75,
-          supplyChain: []
-        }
-      ];
+      // Capture image from camera
+      const imageUri = await captureImage();
       
-      // Randomly select a product
-      const randomProduct = mockProducts[Math.floor(Math.random() * mockProducts.length)];
+      if (!imageUri) {
+        Alert.alert('Capture Failed', 'Could not capture image. Please try again.');
+        return;
+      }
       
-      setDetectedProducts(prev => [...prev, randomProduct]);
+      console.log('Captured image for analysis:', imageUri);
       
-      // Navigate to product detail after a short delay
-      setTimeout(() => {
-        onProductDetected(randomProduct);
-      }, 2000);
+      // Detect product using real AI service
+      const detectedProduct = await detectProduct(imageUri);
+      
+      if (detectedProduct) {
+        setDetectedProducts(prev => [...prev, detectedProduct]);
+        
+        // Navigate to product detail after a short delay
+        setTimeout(() => {
+          onProductDetected(detectedProduct);
+        }, 2000);
+      } else {
+        Alert.alert('Detection Failed', 'Could not identify the product. Please try again.');
+      }
     } catch (error) {
       console.error('Product detection error:', error);
       Alert.alert('Detection Failed', 'Could not identify the product. Please try again.');
+    }
+  };
+
+  const captureImage = async (): Promise<string | null> => {
+    try {
+      console.log('📸 Capturing image...');
+      
+      return new Promise((resolve, reject) => {
+        const options = {
+          mediaType: 'photo' as MediaType,
+          quality: 0.8,
+          includeBase64: true,
+          maxWidth: 1024,
+          maxHeight: 1024,
+        };
+
+        launchCamera(options, (response: ImagePickerResponse) => {
+          if (response.didCancel) {
+            console.log('User cancelled camera');
+            resolve(null);
+          } else if (response.errorMessage) {
+            console.error('Camera error:', response.errorMessage);
+            reject(new Error(response.errorMessage));
+          } else if (response.assets && response.assets[0]) {
+            const asset = response.assets[0];
+            if (asset.uri) {
+              console.log('✅ Image captured successfully:', asset.uri);
+              resolve(asset.uri);
+            } else if (asset.base64) {
+              console.log('✅ Image captured as base64');
+              resolve(`data:image/jpeg;base64,${asset.base64}`);
+            } else {
+              console.error('No image data received');
+              reject(new Error('No image data received'));
+            }
+          } else {
+            console.error('No assets in response');
+            reject(new Error('No assets in response'));
+          }
+        });
+      });
+    } catch (error) {
+      console.error('❌ Error capturing image:', error);
+      return null;
     }
   };
 
@@ -104,6 +134,49 @@ const CameraView: React.FC<CameraViewProps> = ({ onProductDetected, onClose }) =
 
   const stopScanning = () => {
     setIsScanning(false);
+  };
+
+  const selectFromGallery = async () => {
+    try {
+      console.log('📁 Opening gallery...');
+      
+      const options = {
+        mediaType: 'photo' as MediaType,
+        quality: 0.8,
+        includeBase64: true,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      };
+
+      launchImageLibrary(options, async (response: ImagePickerResponse) => {
+        if (response.didCancel) {
+          console.log('User cancelled gallery');
+        } else if (response.errorMessage) {
+          console.error('Gallery error:', response.errorMessage);
+          Alert.alert('Gallery Error', response.errorMessage);
+        } else if (response.assets && response.assets[0]) {
+          const asset = response.assets[0];
+          if (asset.uri) {
+            console.log('✅ Image selected from gallery:', asset.uri);
+            
+            // Detect product from selected image
+            const detectedProduct = await detectProduct(asset.uri);
+            
+            if (detectedProduct) {
+              setDetectedProducts(prev => [...prev, detectedProduct]);
+              setTimeout(() => {
+                onProductDetected(detectedProduct);
+              }, 1000);
+            } else {
+              Alert.alert('Detection Failed', 'Could not identify the product. Please try again.');
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error selecting from gallery:', error);
+      Alert.alert('Gallery Error', 'Could not access gallery. Please try again.');
+    }
   };
 
   const getSustainabilityColor = (score: number) => {
@@ -179,6 +252,13 @@ const CameraView: React.FC<CameraViewProps> = ({ onProductDetected, onClose }) =
           >
             <Icon name="photo-camera" size={24} color="#ffffff" />
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.controlButton, { backgroundColor: '#9C27B0' }]}
+            onPress={selectFromGallery}
+          >
+            <Icon name="photo-library" size={24} color="#ffffff" />
+          </TouchableOpacity>
         </View>
 
         {/* Mode Toggle */}
@@ -218,7 +298,7 @@ const CameraView: React.FC<CameraViewProps> = ({ onProductDetected, onClose }) =
           <Text style={styles.instructionText}>
             {isScanning 
               ? 'Point camera at product and tap capture' 
-              : 'Tap the camera button to start scanning'
+              : 'Tap camera to scan or gallery to select image'
             }
           </Text>
         </View>
