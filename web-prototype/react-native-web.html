@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLens - React Native Web</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #1a1a1a;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .screen {
+            display: none;
+            min-height: calc(100vh - 80px);
+            padding: 20px;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .home-screen {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        .score-card {
+            background: white;
+            margin: 20px 0;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .score-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .score-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .score-label {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .ar-button {
+            margin: 20px 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+            cursor: pointer;
+        }
+
+        .ar-button-gradient {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            padding: 24px;
+            text-align: center;
+            color: white;
+        }
+
+        .ar-button h3 {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 10px 0 5px 0;
+        }
+
+        .ar-button p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .camera-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .products-section {
+            margin: 20px 0;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .product-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .product-card:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .product-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .product-brand {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 8px;
+        }
+
+        .product-score {
+            background: rgba(76, 175, 80, 0.2);
+            border-radius: 12px;
+            padding: 4px 8px;
+            display: inline-block;
+        }
+
+        .product-score-text {
+            font-size: 12px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .ar-screen {
+            background: #000;
+            position: relative;
+        }
+
+        .camera-container {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #cameraVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanning-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scanning-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 3px solid #4CAF50;
+            border-radius: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { border-color: #8BC34A; box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .scanning-corners {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #4CAF50;
+        }
+
+        .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        .status-indicator {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .camera-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .control-btn {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .close-camera {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .product-detail-screen {
+            background: #1a1a1a;
+        }
+
+        .detail-header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .detail-content {
+            padding: 20px;
+        }
+
+        .impact-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .supply-chain-screen {
+            background: #1a1a1a;
+        }
+
+        .map-container {
+            height: 300px;
+            background: linear-gradient(45deg, #2d2d2d, #1a1a1a);
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .profile-screen {
+            background: #1a1a1a;
+        }
+
+        .achievement-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .achievement-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+
+        .achievement-text {
+            flex: 1;
+        }
+
+        .achievement-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .achievement-desc {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 400px;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid #333;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.6);
+            transition: color 0.3s;
+        }
+
+        .nav-item.active {
+            color: #4CAF50;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .nav-label {
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌱 CarbonLens</h1>
+            <p>React Native Web Version</p>
+        </div>
+
+        <!-- Home Screen -->
+        <div class="screen home-screen active" id="homeScreen">
+            <div class="score-card">
+                <div class="score-title">Your Sustainability Score</div>
+                <div class="score-number">72</div>
+                <div class="score-label">Good</div>
+            </div>
+
+            <div class="ar-button" onclick="showScreen('arScreen')">
+                <div class="ar-button-gradient">
+                    <div class="camera-icon">📷</div>
+                    <h3>Start AR Scanner</h3>
+                    <p>Point at products to see their impact</p>
+                </div>
+            </div>
+
+            <div class="products-section">
+                <div class="section-title">Recent Scans</div>
+                
+                <div class="product-card" onclick="showScreen('productDetailScreen')">
+                    <div class="product-image">🍌</div>
+                    <div class="product-info">
+                        <div class="product-name">Organic Bananas</div>
+                        <div class="product-brand">Fresh Farm</div>
+                        <div class="product-score">
+                            <span class="product-score-text">85/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="product-card" onclick="showScreen('productDetailScreen')">
+                    <div class="product-image">🥛</div>
+                    <div class="product-info">
+                        <div class="product-name">Almond Milk</div>
+                        <div class="product-brand">EcoDairy</div>
+                        <div class="product-score">
+                            <span class="product-score-text">75/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="product-card" onclick="showScreen('productDetailScreen')">
+                    <div class="product-image">🍅</div>
+                    <div class="product-info">
+                        <div class="product-name">Organic Tomatoes</div>
+                        <div class="product-brand">Garden Fresh</div>
+                        <div class="product-score">
+                            <span class="product-score-text">95/100</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AR Screen -->
+        <div class="screen ar-screen" id="arScreen">
+            <button class="close-camera" onclick="showScreen('homeScreen')">×</button>
+            <div class="camera-container">
+                <video id="cameraVideo" autoplay playsinline></video>
+                
+                <div class="scanning-overlay">
+                    <div class="scanning-frame">
+                        <div class="scanning-corners corner-tl"></div>
+                        <div class="scanning-corners corner-tr"></div>
+                        <div class="scanning-corners corner-bl"></div>
+                        <div class="scanning-corners corner-br"></div>
+                    </div>
+                    
+                    <div class="status-indicator">Ready to Scan</div>
+                </div>
+
+                <div class="camera-controls">
+                    <button class="control-btn" onclick="captureProduct()">Capture Product</button>
+                    <button class="control-btn" onclick="switchCamera()">Switch Camera</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Screen -->
+        <div class="screen product-detail-screen" id="productDetailScreen">
+            <div class="detail-header">
+                <h2>🍌 Organic Bananas</h2>
+                <p>Fresh Farm • Sustainability Score: 85/100</p>
+            </div>
+            
+            <div class="detail-content">
+                <div class="impact-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">0.8kg</div>
+                        <div class="metric-label">CO₂ Emissions</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">160L</div>
+                        <div class="metric-label">Water Usage</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">1,200km</div>
+                        <div class="metric-label">Food Miles</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">Low</div>
+                        <div class="metric-label">Packaging</div>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3 style="color: white; margin-bottom: 15px;">Environmental Impact</h3>
+                    <p style="color: rgba(255,255,255,0.8); line-height: 1.6;">
+                        Organic bananas have a relatively low environmental impact. 
+                        The organic farming process reduces pesticide use and promotes 
+                        soil health. Transportation from tropical regions contributes 
+                        to the carbon footprint, but the overall impact is moderate.
+                    </p>
+                </div>
+
+                <button class="control-btn" onclick="showScreen('supplyChainScreen')" style="width: 100%; margin-top: 20px;">
+                    View Supply Chain Journey
+                </button>
+            </div>
+        </div>
+
+        <!-- Supply Chain Screen -->
+        <div class="screen supply-chain-screen" id="supplyChainScreen">
+            <div class="detail-header">
+                <h2>🌍 Supply Chain Journey</h2>
+                <p>From Farm to Your Table</p>
+            </div>
+            
+            <div class="detail-content">
+                <div class="map-container">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">🗺️</div>
+                        <div>Interactive World Map</div>
+                        <div style="font-size: 14px; margin-top: 10px;">Supply chain visualization would appear here</div>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3 style="color: white; margin-bottom: 15px;">Journey Steps</h3>
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin: 10px 0;">
+                        <div style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">🌱 Farm (Ecuador)</div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 14px;">Organic farming, 0.2kg CO₂</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin: 10px 0;">
+                        <div style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">🚢 Transport (Ocean)</div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 14px;">Shipping, 0.4kg CO₂</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin: 10px 0;">
+                        <div style="color: #4CAF50; font-weight: bold; margin-bottom: 5px;">🏪 Store (Local)</div>
+                        <div style="color: rgba(255,255,255,0.8); font-size: 14px;">Retail, 0.2kg CO₂</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Screen -->
+        <div class="screen profile-screen" id="profileScreen">
+            <div class="detail-header">
+                <h2>👤 Your Profile</h2>
+                <p>Sustainability Champion</p>
+            </div>
+            
+            <div class="detail-content">
+                <div class="score-card" style="margin: 20px 0;">
+                    <div class="score-title">Overall Impact</div>
+                    <div class="score-number">72</div>
+                    <div class="score-label">Good</div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3 style="color: white; margin-bottom: 15px;">Achievements</h3>
+                    
+                    <div class="achievement-card">
+                        <div class="achievement-icon">🌱</div>
+                        <div class="achievement-text">
+                            <div class="achievement-title">Eco Warrior</div>
+                            <div class="achievement-desc">Scanned 50+ sustainable products</div>
+                        </div>
+                    </div>
+
+                    <div class="achievement-card">
+                        <div class="achievement-icon">♻️</div>
+                        <div class="achievement-text">
+                            <div class="achievement-title">Recycler</div>
+                            <div class="achievement-desc">Chose recyclable packaging 20 times</div>
+                        </div>
+                    </div>
+
+                    <div class="achievement-card">
+                        <div class="achievement-icon">🚚</div>
+                        <div class="achievement-text">
+                            <div class="achievement-title">Local Hero</div>
+                            <div class="achievement-desc">Preferenced local products 15 times</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3 style="color: white; margin-bottom: 15px;">Your Impact</h3>
+                    <div class="impact-metrics">
+                        <div class="metric-card">
+                            <div class="metric-value">15.2kg</div>
+                            <div class="metric-label">CO₂ Saved</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">2,840L</div>
+                            <div class="metric-label">Water Saved</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <div class="nav-item active" onclick="showScreen('homeScreen')">
+                <div class="nav-icon">🏠</div>
+                <div class="nav-label">Home</div>
+            </div>
+            <div class="nav-item" onclick="showScreen('arScreen')">
+                <div class="nav-icon">📷</div>
+                <div class="nav-label">AR</div>
+            </div>
+            <div class="nav-item" onclick="showScreen('productDetailScreen')">
+                <div class="nav-icon">📊</div>
+                <div class="nav-label">Details</div>
+            </div>
+            <div class="nav-item" onclick="showScreen('supplyChainScreen')">
+                <div class="nav-icon">🌍</div>
+                <div class="nav-label">Supply</div>
+            </div>
+            <div class="nav-item" onclick="showScreen('profileScreen')">
+                <div class="nav-icon">👤</div>
+                <div class="nav-label">Profile</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStream = null;
+        let usingFrontCamera = false;
+
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show selected screen
+            document.getElementById(screenId).classList.add('active');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Set active nav item based on screen
+            const navMap = {
+                'homeScreen': 0,
+                'arScreen': 1,
+                'productDetailScreen': 2,
+                'supplyChainScreen': 3,
+                'profileScreen': 4
+            };
+            
+            if (navMap[screenId] !== undefined) {
+                document.querySelectorAll('.nav-item')[navMap[screenId]].classList.add('active');
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: usingFrontCamera ? 'user' : 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('cameraVideo').srcObject = currentStream;
+                
+                console.log('✅ Camera started successfully');
+                
+            } catch (error) {
+                console.error('❌ Camera access denied:', error);
+                alert('Camera access is required for AR scanning. Please allow camera access.');
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        async function switchCamera() {
+            stopCamera();
+            usingFrontCamera = !usingFrontCamera;
+            await startCamera();
+        }
+
+        function captureProduct() {
+            // Simulate product capture
+            alert('Product captured! AI analysis would happen here.');
+        }
+
+        // Start camera when AR screen is shown
+        document.getElementById('arScreen').addEventListener('click', function() {
+            if (this.classList.contains('active')) {
+                startCamera();
+            }
+        });
+
+        // Stop camera when leaving AR screen
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('arScreen').classList.contains('active')) {
+                stopCamera();
+            }
+        });
+
+        // Simulate real-time score updates
+        setInterval(() => {
+            const scoreElement = document.querySelector('.score-number');
+            const currentScore = parseInt(scoreElement.textContent);
+            const newScore = Math.max(60, Math.min(100, currentScore + (Math.random() - 0.5) * 2));
+            scoreElement.textContent = Math.round(newScore);
+        }, 5000);
+    </script>
+</body>
+</html>
