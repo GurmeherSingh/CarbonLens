@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CarbonLens - Barcode Scanner (HTTP)</title>
+    <title>CarbonLens - Barcode Scanner</title>
     <!-- Using inline SVG animation (no external Lottie dependency) -->
     <style>
         #tree-progress-container {
@@ -548,7 +548,7 @@
         <!-- Header -->
         <div class="header">
             <h1>🌱 CarbonLens</h1>
-            <p>Barcode Carbon Scanner (HTTP)</p>
+            <p>Barcode Carbon Scanner</p>
         </div>
         <!-- Lottie tree animation (uses local plant.json). If lottie-player is not available, an inline SVG fallback is kept but commented. -->
         <div id="tree-progress-container" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.98); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
@@ -572,7 +572,7 @@
                 <button class="mode-btn" onclick="switchMode('shopping')">Shopping Mode</button>
             </div>
 
-            <div class="manual-input-section">
+            <div class="manual-input-section" id="singleModeSection">
                 <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
                 <h3>Scan or Enter Product Barcode</h3>
                 <p>Use camera to scan or type a product barcode for instant carbon analysis</p>
@@ -585,7 +585,20 @@
                 <button class="analyze-btn" onclick="analyzeBarcode()" id="analyzeBtn">Analyze Carbon Footprint</button>
             </div>
 
-            <div class="camera-note">
+            <div class="manual-input-section" id="shoppingModeSection" style="display: none;">
+                <div style="font-size: 32px; margin-bottom: 10px;">🛒</div>
+                <h3>Scan or Enter Product Barcode</h3>
+                <p>Use camera to scan or type a product barcode for your shopping list</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="analyze-btn" onclick="startZXingScanner()" style="flex: 1; background: rgba(255,255,255,0.3); border: 2px solid white;">
+                        📷 Scan with Camera
+                    </button>
+                </div>
+                <input type="text" class="barcode-input" id="shoppingBarcodeInput" placeholder="Enter barcode to add to list" maxlength="14">
+                <button class="analyze-btn" onclick="addToShoppingListManual()" id="addToListBtn">Add to Shopping List</button>
+            </div>
+
+            <div class="camera-note" style="display: none;">
                 <h4>📷 Camera Note</h4>
                 <p>Camera scanning requires HTTPS. For camera access, use the HTTPS version at <strong>https://localhost:3001/barcode</strong> (you'll need to accept the security certificate).</p>
             </div>
@@ -684,6 +697,11 @@
         let codeReader = null;
         let currentStream = null;
         let usingFrontCamera = false;
+        
+        // Rate limiting for barcode scanning
+        let lastScanTime = 0;
+        let isProcessingBarcode = false;
+        let scanCooldownMs = 3000; // 3 second cooldown between scans
         // Tree Animation Logic
         function showTreeProgress() {
             const container = document.getElementById('tree-progress-container');
@@ -744,7 +762,7 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🧠 HTTP version loaded');
+            console.log('🧠 Scanner loaded');
             console.log('🔍 Running startup diagnostic...');
             
             // Check if required libraries are loaded
@@ -772,14 +790,18 @@
                 }
                 
                 const config = await response.json();
-                console.log('📋 Config received:', config);
+                console.log('📋 Config received (keys hidden for security):');
+                console.log('📋 Config keys:', Object.keys(config));
                 
                 googleVisionApiKey = config.googleVisionApiKey;
                 geminiApiKey = config.geminiApiKey || 'YOUR_GEMINI_API_KEY';
                 
                 console.log('✅ API keys loaded successfully');
                 console.log('🔑 Google Vision Key present:', !!googleVisionApiKey);
+                console.log('🔑 Google Vision Key length:', googleVisionApiKey ? googleVisionApiKey.length : 0);
                 console.log('🔑 Gemini Key present:', !!geminiApiKey && geminiApiKey !== 'YOUR_GEMINI_API_KEY');
+                console.log('🔑 Gemini Key length:', geminiApiKey ? geminiApiKey.length : 0);
+                console.log('🔑 Gemini Key starts with:', geminiApiKey ? geminiApiKey.substring(0, 10) + '...' : 'N/A');
                 
             } catch (error) {
                 console.error('❌ Failed to load API keys:', error);
@@ -814,19 +836,111 @@
             });
             
             const shoppingList = document.getElementById('shoppingList');
-            const inputSection = document.querySelector('.manual-input-section');
-            const analyzeBtn = document.querySelector('.analyze-btn');
+            const singleModeSection = document.getElementById('singleModeSection');
+            const shoppingModeSection = document.getElementById('shoppingModeSection');
             
-            shoppingList.classList.toggle('active', mode === 'shopping');
-            analyzeBtn.textContent = mode === 'shopping' ? 'Add to Shopping List' : 'Analyze Carbon Footprint';
-            document.getElementById('barcodeInput').placeholder = 
-                mode === 'shopping' ? 'Enter barcode to add to list' : 'Enter barcode (e.g., 3017620422003)';
+            if (mode === 'shopping') {
+                shoppingList.classList.add('active');
+                singleModeSection.style.display = 'none';
+                shoppingModeSection.style.display = 'block';
+            } else {
+                shoppingList.classList.remove('active');
+                singleModeSection.style.display = 'block';
+                shoppingModeSection.style.display = 'none';
+            }
         }
 
         function addManualItem() {
             const barcode = prompt('Enter product barcode:');
             if (barcode && barcode.trim()) {
-                analyzeBarcode(barcode.trim());
+                addToShoppingListManual(barcode.trim());
+            }
+        }
+
+        async function addToShoppingListManual(manualBarcode) {
+            const input = document.getElementById('shoppingBarcodeInput');
+            const btn = document.getElementById('addToListBtn');
+            const barcode = manualBarcode || input.value.trim().replace(/\D/g, ''); // Remove non-digits
+            
+            if (!barcode) {
+                alert('Please enter a barcode number');
+                return;
+            }
+            
+            if (barcode.length < 8 || barcode.length > 14) {
+                alert('Please enter a valid barcode (8-14 digits)');
+                return;
+            }
+            
+            if (!apisInitialized) {
+                alert('APIs not initialized. Please refresh the page.');
+                return;
+            }
+            
+            // Update UI
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Adding...';
+            
+            try {
+                console.log('🛒 Adding barcode to shopping list:', barcode);
+                // Fetch product data
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Add to shopping list
+                shoppingList.push({
+                    barcode,
+                    name: productData.name || 'Unknown Product',
+                    brand: productData.brand || 'Unknown Brand',
+                    data: productData // Store full data for later analysis
+                });
+                updateShoppingList();
+                input.value = ''; // Clear input after adding
+                
+            } catch (error) {
+                console.error('❌ Failed to add to shopping list:', error);
+                alert(`Failed to add item: ${error.message}`);
+            } finally {
+                // Reset UI
+                btn.disabled = false;
+                btn.innerHTML = 'Add to Shopping List';
+                input.focus(); // Focus back on input for next entry
+            }
+        }
+
+        async function addToShoppingListFromScanner(barcode) {
+            try {
+                console.log('📦 Scanner: Fetching product data for shopping list...');
+                updateStatus('Fetching product data...', 'scanning');
+                
+                if (!apisInitialized || !productAPI) {
+                    throw new Error('APIs not initialized. Please refresh the page.');
+                }
+                
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Scanner: Product data for shopping list:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Add to shopping list
+                shoppingList.push({
+                    barcode,
+                    name: productData.name || 'Unknown Product',
+                    brand: productData.brand || 'Unknown Brand',
+                    data: productData // Store full data for later analysis
+                });
+                updateShoppingList();
+                console.log('✅ Scanner: Item added to shopping list');
+                
+            } catch (error) {
+                console.error('❌ Scanner: Failed to add to shopping list:', error);
+                alert(`Failed to add item: ${error.message}`);
             }
         }
 
@@ -1161,6 +1275,15 @@
                 analyzeBarcode();
             }
         });
+        
+        // Allow Enter key to add to shopping list
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('shoppingBarcodeInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addToShoppingListManual();
+                }
+            });
+        });
 
         // ZXing Scanner Functions
         async function startZXingScanner() {
@@ -1195,14 +1318,24 @@
                     document.getElementById('scannerVideo'),
                     (result, error) => {
                         if (result) {
-                            console.log('✅ Barcode detected:', result.getText());
-                            showBarcodeResult(result.getText());
-                            updateStatus('Barcode detected!', 'detected');
+                            const barcode = result.getText();
+                            const currentTime = Date.now();
                             
-                            // Process barcode after a short delay
-                            setTimeout(() => {
-                                processScannedBarcode(result.getText());
-                            }, 2000);
+                            // Rate limiting: Check if enough time has passed since last scan
+                            if (isProcessingBarcode || (currentTime - lastScanTime < scanCooldownMs)) {
+                                console.log('⏳ Rate limiting: Ignoring duplicate scan');
+                                return;
+                            }
+                            
+                            console.log('✅ Barcode detected:', barcode);
+                            lastScanTime = currentTime;
+                            isProcessingBarcode = true;
+                            
+                            showBarcodeResult(barcode);
+                            updateStatus('Barcode detected! Processing...', 'detected');
+                            
+                            // Process barcode immediately (no delay)
+                            processScannedBarcode(barcode);
                         }
                         if (error && !(error instanceof ZXing.NotFoundException)) {
                             console.error('❌ Scanning error:', error);
@@ -1258,29 +1391,61 @@
             updateStatus('Processing barcode...', 'scanning');
             
             try {
-                // Auto-fill the barcode input
-                document.getElementById('barcodeInput').value = barcode;
+                console.log('🔍 Scanner: Processing barcode for mode:', currentMode, 'barcode:', barcode);
                 
-                // Stop scanner immediately to show the analysis process
+                // Stop scanner immediately
                 stopZXingScanner();
                 
-                // Force single mode for scanner analysis
-                const originalMode = currentMode;
-                currentMode = 'single';
-                console.log('🔍 Scanner: Forcing single mode for analysis');
-                console.log('🔍 Scanner: Current mode set to:', currentMode);
+                if (currentMode === 'shopping') {
+                    console.log('🛒 Scanner: Adding to shopping list');
+                    await addToShoppingListFromScanner(barcode);
+                    return;
+                }
                 
-                // Use the existing analyzeBarcode function to start analysis
-                await analyzeBarcode(barcode);
+                console.log('🔍 Scanner: Starting single mode analysis');
                 
-                // Restore original mode
-                currentMode = originalMode;
-                console.log('🔍 Scanner: Restored mode to:', currentMode);
+                // Start tree animation immediately for scanner analysis
+                showTreeProgress();
+                
+                // **DIRECT API ANALYSIS - NO INPUT FIELD AUTO-FILL**
+                // Step 1: Validate APIs are initialized
+                if (!apisInitialized || !productAPI || !geminiAnalyzer) {
+                    throw new Error('APIs not initialized. Please refresh the page.');
+                }
+                
+                // Step 2: Fetch product data
+                console.log('📦 Scanner: Fetching product data...');
+                updateStatus('Fetching product data...', 'scanning');
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Scanner: Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Step 3: Analyze with Gemini (FORCE REAL API CALL)
+                console.log('🤖 Scanner: Analyzing with Gemini AI...');
+                updateStatus('Analyzing carbon footprint...', 'scanning');
+                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                console.log('✅ Scanner: Carbon analysis completed:', carbonAnalysis);
+                
+                // Step 4: Display results immediately
+                setTimeout(() => {
+                    displayCarbonResults(productData, carbonAnalysis);
+                    hideTreeProgress();
+                }, 0);
                 
             } catch (error) {
-                console.error('❌ Barcode processing failed:', error);
+                console.error('❌ Scanner barcode processing failed:', error);
                 updateStatus('Processing failed', 'error');
+                if (currentMode === 'single') {
+                    hideTreeProgress(); // Hide animation on error for single mode
+                }
                 alert(`Analysis failed: ${error.message}`);
+            } finally {
+                // Always reset rate limiting flag
+                isProcessingBarcode = false;
+                console.log('🔓 Scanner: Rate limiting reset, ready for next scan');
             }
         }
 

@@ -18,15 +18,45 @@ class GeminiCarbonAnalyzer {
     async analyzeCarbonFootprint(productData) {
         try {
             console.log('🤖 Analyzing carbon footprint with Gemini AI...');
+            console.log('🔍 Product data for analysis:', productData);
             
             const prompt = this.buildAnalysisPrompt(productData);
-            const response = await this.callGeminiAPI(prompt);
+            console.log('📝 Analysis prompt created, calling Gemini API...');
             
-            return this.parseGeminiResponse(response, productData);
+            const response = await this.callGeminiAPI(prompt);
+            console.log('✅ Gemini API response received, parsing...');
+            
+            const analysis = this.parseGeminiResponse(response, productData);
+            console.log('✅ Gemini analysis complete:', analysis);
+            
+            return analysis;
             
         } catch (error) {
             console.error('❌ Gemini analysis failed:', error);
-            return this.getFallbackAnalysis(productData);
+            console.error('🔍 Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack?.substring(0, 500)
+            });
+            
+            // Log the exact reason for fallback
+            if (error.message.includes('API key')) {
+                console.log('⚠️ REASON: API key not configured properly');
+            } else if (error.message.includes('Network error')) {
+                console.log('⚠️ REASON: Network connectivity issue');
+            } else if (error.message.includes('rate limit')) {
+                console.log('⚠️ REASON: API rate limit exceeded');
+            } else {
+                console.log('⚠️ REASON: Unknown API error');
+            }
+            
+            console.log('⚠️ CRITICAL: Gemini API failed, using fallback analysis');
+            
+            // Return fallback analysis instead of throwing error
+            // This ensures the user always gets results
+            const fallbackResult = this.getFallbackAnalysis(productData);
+            fallbackResult.metadata.fallbackReason = error.message;
+            return fallbackResult;
         }
     }
 
@@ -113,12 +143,21 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
      * @returns {Promise<Object>} Gemini API response
      */
     async callGeminiAPI(prompt) {
-        // Validate API key
-        if (!this.apiKey || this.apiKey === 'your_gemini_api_key_here' || this.apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
-            throw new Error('Gemini API key not configured. Please add your API key to the .env file.');
+        // Enhanced API key validation with debugging
+        console.log('🔑 API Key validation...');
+        console.log('🔑 API Key exists:', !!this.apiKey);
+        console.log('🔑 API Key length:', this.apiKey ? this.apiKey.length : 0);
+        console.log('🔑 API Key starts with:', this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'N/A');
+        
+        if (!this.apiKey || this.apiKey === 'your_gemini_api_key_here' || this.apiKey === 'YOUR_GEMINI_API_KEY_HERE' || this.apiKey === 'YOUR_GEMINI_API_KEY') {
+            const errorMsg = 'Gemini API key not configured. Please add your API key to the server configuration.';
+            console.error('❌ API Key Error:', errorMsg);
+            throw new Error(errorMsg);
         }
 
-        console.log('🤖 Calling Gemini API...');
+        const timestamp = new Date().toISOString();
+        console.log(`🤖 [${timestamp}] Calling Gemini API...`);
+        console.log('🌐 API URL:', `${this.baseUrl}?key=***`);
         
         try {
             const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
@@ -242,7 +281,7 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
 
         } catch (error) {
             console.error('❌ Failed to parse Gemini response:', error);
-            return this.getFallbackAnalysis(productData);
+            throw new Error(`Failed to parse Gemini response: ${error.message}`);
         }
     }
 
