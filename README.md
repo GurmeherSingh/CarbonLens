@@ -1,4 +1,4 @@
-# 🏆 Winner of MLH Track: Best Use of MongoDB Atlas at GirlHacks 2025
+# 🏆 Winner of MLH Track: Best Use of MongoDB Atlas, GirlHacks 2025
 
 # 🌱 CarbonLens: Sustainable Shopping in AR  
 
