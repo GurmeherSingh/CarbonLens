@@ -6,7 +6,7 @@
 class GeminiCarbonAnalyzer {
     constructor(apiKey) {
         this.apiKey = apiKey;
-        this.model = 'gemini-2.0-flash-exp';
+        this.model = 'gemini-2.5-pro';
         this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
     }
 
@@ -188,13 +188,47 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
             }
 
             const analysis = JSON.parse(jsonMatch[0]);
+
+            // Validate and normalize the analysis results
+            analysis.carbonFootprint = {
+                ...analysis.carbonFootprint,
+                perUnit: Number(analysis.carbonFootprint.perUnit) || 0,
+                per1000Units: Number(analysis.carbonFootprint.per1000Units) || 0
+            };
+
+            analysis.waterUsage = {
+                ...analysis.waterUsage,
+                perUnit: Number(analysis.waterUsage.perUnit) || 0,
+                per1000Units: Number(analysis.waterUsage.per1000Units) || 0
+            };
+
+            analysis.environmentalEquivalents = {
+                ...analysis.environmentalEquivalents,
+                treesAbsorbed: Number(analysis.environmentalEquivalents.treesAbsorbed) || 0,
+                treesPer1000Units: Number(analysis.environmentalEquivalents.treesPer1000Units) || 0,
+                milesDriven: Number(analysis.environmentalEquivalents.milesDriven) || 0,
+                waterInGallons: Number(analysis.environmentalEquivalents.waterInGallons) || 0,
+                plasticBottlesEquivalent: Number(analysis.environmentalEquivalents.plasticBottlesEquivalent) || 0
+            };
+
+            // Ensure recommendations are properly formatted
+            analysis.recommendations = analysis.recommendations.map(rec => 
+                typeof rec === 'string' ? rec : 'Alternative eco-friendly product available'
+            ).slice(0, 3);
+            
+            // Recalculate sustainability score based on actual CO2 and water data
+            analysis.sustainabilityScore = this.calculateSustainabilityScoreFromData(
+                analysis.carbonFootprint.perUnit,
+                analysis.waterUsage.perUnit
+            );
             
             // Add metadata
             analysis.metadata = {
                 source: 'Gemini AI',
                 timestamp: new Date().toISOString(),
                 productBarcode: productData.barcode,
-                confidence: 'High'
+                confidence: 'High',
+                category: productData.category || 'Unknown'
             };
 
             return analysis;
@@ -319,25 +353,48 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
     }
 
     /**
-     * Calculate sustainability score
+     * Calculate sustainability score based on CO2 emissions and environmental impact
      * @param {Object} productData - Product data
      * @returns {number} Sustainability score (0-100)
      */
     calculateSustainabilityScore(productData) {
-        let score = 50; // Base score
+        // Get carbon footprint per unit
+        const carbonFootprint = this.estimateCarbonFootprint(productData);
         
-        // Positive factors
-        if (productData.environmental?.sustainability === 'A') score += 20;
-        if (productData.environmental?.sustainability === 'B') score += 15;
-        if (productData.ingredients?.includes('organic')) score += 10;
-        if (productData.packaging?.includes('recyclable')) score += 5;
+        // Calculate score based on CO2 emissions (lower = better)
+        // Scale: 0-5 kg CO2 maps to 100-0 score
+        let co2Score = Math.max(0, 100 - (carbonFootprint * 20));
         
-        // Negative factors
-        if (productData.environmental?.palmOil?.length > 0) score -= 15;
-        if (productData.environmental?.deforestation?.length > 0) score -= 20;
-        if (productData.ingredients?.includes('artificial')) score -= 5;
+        // Adjust based on water usage (lower = better)
+        const waterUsage = this.estimateWaterUsage(productData);
+        const waterScore = Math.max(0, 100 - (waterUsage / 10)); // Scale water usage
         
-        return Math.max(0, Math.min(100, score));
+        // Average CO2 and water scores
+        let score = (co2Score + waterScore) / 2;
+        
+        // Round to nearest integer
+        return Math.round(Math.max(0, Math.min(100, score)));
+    }
+
+    /**
+     * Calculate sustainability score from actual CO2 and water data
+     * @param {number} carbonFootprint - CO2 per unit (kg)
+     * @param {number} waterUsage - Water per unit (liters)
+     * @returns {number} Sustainability score (0-100)
+     */
+    calculateSustainabilityScoreFromData(carbonFootprint, waterUsage) {
+        // Calculate score based on CO2 emissions (lower = better)
+        // Scale: 0-5 kg CO2 maps to 100-0 score
+        let co2Score = Math.max(0, 100 - (carbonFootprint * 20));
+        
+        // Calculate score based on water usage (lower = better)
+        const waterScore = Math.max(0, 100 - (waterUsage / 10)); // Scale water usage
+        
+        // Average CO2 and water scores
+        let score = (co2Score + waterScore) / 2;
+        
+        // Round to nearest integer
+        return Math.round(Math.max(0, Math.min(100, score)));
     }
 }
 

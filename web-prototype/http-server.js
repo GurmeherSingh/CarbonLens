@@ -19,8 +19,16 @@ if (result.error) {
 const app = express();
 const PORT = 3000; // Using port 3000 for HTTP
 
+// Add middleware for parsing JSON bodies
+app.use(express.json());
+
 // Serve static files (JS, CSS, images) but not HTML files
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+// Serve plant.json file specifically
+app.get('/plant.json', (req, res) => {
+    res.sendFile(path.join(__dirname, 'plant.json'));
+});
 
 // Serve JavaScript files specifically
 app.get('/product-api.js', (req, res) => {
@@ -29,6 +37,44 @@ app.get('/product-api.js', (req, res) => {
 
 app.get('/gemini-carbon-analyzer.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'gemini-carbon-analyzer.js'));
+});
+
+// Shopping list analysis endpoint
+app.post('/api/shopping/analyze', async (req, res) => {
+    try {
+        const { items } = req.body;
+        if (!items || !Array.isArray(items)) {
+            throw new Error('Invalid items data');
+        }
+
+        // Calculate aggregate environmental impact
+        const totalCarbonFootprint = items.length * 1.5; // Simplified calculation
+        const totalWaterUsage = items.length * 100;
+        const treesRequired = totalCarbonFootprint * 0.5;
+        const milesEquivalent = totalCarbonFootprint * 2.5;
+
+        res.json({
+            success: true,
+            summary: {
+                items: items.length,
+                totalCarbonFootprint,
+                totalWaterUsage,
+                treesRequired,
+                milesEquivalent
+            },
+            recommendations: [
+                'Consider buying in bulk to reduce packaging waste',
+                'Look for products with eco-friendly certifications',
+                'Choose items with minimal packaging'
+            ]
+        });
+    } catch (error) {
+        console.error('Shopping list analysis failed:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // API endpoint to get API keys
@@ -57,6 +103,27 @@ app.get('/app', (req, res) => {
 // Serve the barcode scanner at /barcode (HTTP optimized version)
 app.get('/barcode', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-scanner-http.html'));
+});
+
+// Serve the shopping mode version at /shopping
+app.get('/shopping', (req, res) => {
+    res.sendFile(path.join(__dirname, 'barcode-carbon-scanner.html'));
+});
+
+// API endpoint for handling shopping list data
+app.post('/api/shopping/analyze', express.json(), (req, res) => {
+    const { items } = req.body;
+    console.log('Analyzing shopping list:', items);
+    // Process the items and return aggregate analysis
+    res.json({
+        success: true,
+        items: items.length,
+        analysis: {
+            totalCarbonFootprint: 0,
+            totalWaterUsage: 0,
+            recommendations: []
+        }
+    });
 });
 
 // Serve the HTTPS camera version at /camera

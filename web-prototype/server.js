@@ -10,6 +10,9 @@ const PORT = 3001;
 // Serve static files for assets only (not HTML files)
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
+// Serve static files from the web-prototype directory
+app.use(express.static(__dirname));
+
 // API endpoint to get API keys
 app.get('/api/config', (req, res) => {
     res.json({

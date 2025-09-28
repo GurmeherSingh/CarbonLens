@@ -4,7 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarbonLens - Barcode Scanner (HTTP)</title>
+    <!-- Using inline SVG animation (no external Lottie dependency) -->
     <style>
+        #tree-progress-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(255,255,255,0.98);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #tree-animation-wrap {
+            width: 420px;
+            height: 420px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -199,6 +222,123 @@
             margin-top: 5px;
         }
 
+        .mode-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px;
+            padding: 5px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 25px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .mode-btn.active {
+            background: #4CAF50;
+        }
+
+        .shopping-list {
+            display: none;
+            background: rgba(0,0,0,0.8);
+            margin: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .shopping-list.active {
+            display: block;
+        }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .list-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .item-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.8);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: white;
+        }
+
+        .item-barcode {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .remove-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 24px;
+            text-align: center;
+        }
+
+        .checkout-btn {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkout-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .loading {
             display: inline-block;
             width: 20px;
@@ -208,12 +348,25 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+    /* Tree SVG animation styles */
+    .tree-svg { overflow: visible; }
+    .tree-svg #trunk { transform-origin: 100px 230px; transform: scaleY(0); transition: transform 7s cubic-bezier(.2,.9,.3,1); }
+    .tree-svg #branches path { stroke-dasharray: 300; stroke-dashoffset: 300; opacity: 0; transition: stroke-dashoffset 2.4s ease, opacity 0.6s ease; }
+    .tree-svg #branch1 { transition-delay: 1s; }
+    .tree-svg #branch2 { transition-delay: 1.8s; }
+    .tree-svg #branch3 { transition-delay: 2.8s; }
+    .tree-svg #branch4 { transition-delay: 3.6s; }
+    .tree-svg #crown { transform-origin: 100px 130px; transform: scale(0.6); opacity: 0; transition: transform 1.6s ease 5.2s, opacity 1.0s ease 5.2s; }
+    .tree-svg.animate #trunk { transform: scaleY(1); }
+    .tree-svg.animate #branches path { stroke-dashoffset: 0; opacity: 1; }
+    .tree-svg.animate #crown { transform: scale(1); opacity: 1; }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
     </style>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 </head>
 <body>
     <div class="container">
@@ -222,9 +375,28 @@
             <h1>🌱 CarbonLens</h1>
             <p>Barcode Carbon Scanner (HTTP)</p>
         </div>
+        <!-- Lottie tree animation (uses local plant.json). If lottie-player is not available, an inline SVG fallback is kept but commented. -->
+        <div id="tree-progress-container" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.98); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+            <div id="tree-animation-wrap" style="width:420px; height:420px; display:flex; justify-content:center; align-items:center;">
+                                <lottie-player id="tree-lottie-player" src="./plant.json" background="transparent" speed="0.06" style="width: 100%; height: 100%;" mode="normal"></lottie-player>
 
+                <!--
+                Fallback inline SVG preserved for environments where lottie-player cannot be loaded.
+                Uncomment or use the existing CSS-based SVG animation as a fallback if needed.
+                <svg id="tree-svg" viewBox="0 0 200 240" width="420" height="420" class="tree-svg" xmlns="http://www.w3.org/2000/svg">
+                    ... (svg content preserved above) ...
+                </svg>
+                -->
+            </div>
+            <div id="tree-analyzing-text" style="margin-top:20px; font-size:1.2em; color:#2E8B57; font-weight:bold;">Analyzing...</div>
+        </div>
         <!-- Home Screen -->
         <div class="home-screen">
+            <div class="mode-toggle">
+                <button class="mode-btn active" onclick="switchMode('single')">Single Item Mode</button>
+                <button class="mode-btn" onclick="switchMode('shopping')">Shopping Mode</button>
+            </div>
+
             <div class="manual-input-section">
                 <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
                 <h3>Enter Product Barcode</h3>
@@ -238,19 +410,29 @@
                 <p>Camera scanning requires HTTPS. For camera access, use the HTTPS version at <strong>https://localhost:3001/barcode</strong> (you'll need to accept the security certificate).</p>
             </div>
 
+            <div class="shopping-list" id="shoppingList">
+                <div class="list-header">
+                    <div class="list-title">🛒 Shopping List</div>
+                    <button class="analyze-btn" style="padding: 8px 16px" onclick="addManualItem()">+ Add Item</button>
+                </div>
+                <div id="itemList" class="item-list">
+                    <!-- Shopping list items will be added here -->
+                </div>
+                <button id="checkoutBtn" class="checkout-btn" onclick="processCheckout()" disabled>
+                    Analyze Shopping List
+                </button>
+            </div>
+
             <div class="info-section">
-                <h4 style="color: #4CAF50; margin-bottom: 10px;">📱 How It Works</h4>
+                <h4 style="color: #4CAF50; margin-bottom: 10px;">📱 Sample Barcodes</h4>
                 <p style="font-size: 14px; line-height: 1.5;">
-                    1. Enter a product barcode manually<br>
-                    2. Fetches product data from Open Food Facts<br>
-                    3. Gemini AI calculates carbon footprint<br>
-                    4. See environmental impact instantly!<br><br>
                     <strong>Try these sample barcodes:</strong><br>
                     • 3017620422003 (Nutella)<br>
                     • 012000221545 (Starry Soda)<br>
                     • 7622210449283 (Toblerone)
                 </p>
             </div>
+
         </div>
 
         <!-- Results Modal -->
@@ -279,6 +461,65 @@
         let googleVisionApiKey = '';
         let geminiApiKey = '';
         let apisInitialized = false;
+        let currentMode = 'single';
+        let shoppingList = [];
+        // Tree Animation Logic
+        function showTreeProgress() {
+            const container = document.getElementById('tree-progress-container');
+            const lottie = document.getElementById('tree-lottie-player');
+            const svg = document.getElementById('tree-svg');
+            try {
+                // First make sure container is properly displayed
+                container.style.display = 'flex';
+                
+                if (lottie) {
+                    // Reset the animation first
+                    lottie.stop();
+                    // Make sure autoplay is enabled
+                    lottie.autoplay = true;
+                    // Make sure loop is enabled
+                    lottie.loop = true;
+                    // Make sure speed is set correctly
+                    lottie.speed = 0.06;
+                    // Force a small delay to ensure container is visible
+                    setTimeout(() => {
+                        lottie.seek(0); // Start from beginning
+                        lottie.play();
+                    }, 100);
+                } else if (svg) {
+                    // fallback to SVG-based animation
+                    svg.classList.remove('animate');
+                    void svg.getBoundingClientRect();
+                    svg.classList.add('animate');
+                } else {
+                    console.error('No animation element (lottie or svg) found');
+                }
+            } catch (err) {
+                console.error('Error showing tree progress:', err);
+            }
+        }
+
+        function hideTreeProgress() {
+            const container = document.getElementById('tree-progress-container');
+            const lottie = document.getElementById('tree-lottie-player');
+            try {
+                if (lottie) {
+                    // Stop the animation gracefully
+                    lottie.loop = false; // Disable looping
+                    // Stop animation immediately when called
+                    lottie.stop();
+                    lottie.seek(0); // Reset to beginning
+                    container.style.display = 'none';
+                } else {
+                    // If no lottie player, just hide the container
+                    container.style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error hiding tree progress:', err);
+                // Force hide if there's an error
+                container.style.display = 'none';
+            }
+        }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
@@ -345,10 +586,211 @@
             }
         }
 
-        async function analyzeBarcode() {
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(mode));
+            });
+            
+            const shoppingList = document.getElementById('shoppingList');
+            const inputSection = document.querySelector('.manual-input-section');
+            const analyzeBtn = document.querySelector('.analyze-btn');
+            
+            shoppingList.classList.toggle('active', mode === 'shopping');
+            analyzeBtn.textContent = mode === 'shopping' ? 'Add to Shopping List' : 'Analyze Carbon Footprint';
+            document.getElementById('barcodeInput').placeholder = 
+                mode === 'shopping' ? 'Enter barcode to add to list' : 'Enter barcode (e.g., 3017620422003)';
+        }
+
+        function addManualItem() {
+            const barcode = prompt('Enter product barcode:');
+            if (barcode && barcode.trim()) {
+                analyzeBarcode(barcode.trim());
+            }
+        }
+
+        function updateShoppingList() {
+            const itemList = document.getElementById('itemList');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            
+            itemList.innerHTML = '';
+            shoppingList.forEach((item, index) => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-card';
+                itemCard.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-barcode">${item.barcode}</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeItem(${index})">×</button>
+                `;
+                itemList.appendChild(itemCard);
+            });
+            
+            checkoutBtn.disabled = shoppingList.length === 0;
+        }
+
+        function removeItem(index) {
+            shoppingList.splice(index, 1);
+            updateShoppingList();
+        }
+
+        async function processCheckout() {
+            if (shoppingList.length === 0) return;
+
+            const btn = document.getElementById('checkoutBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Analyzing...';
+            
+            // Show tree animation for shopping list analysis
+            showTreeProgress();
+
+            try {
+                // Get analysis for each item and store with item
+                const itemsWithAnalysis = await Promise.all(shoppingList.map(async item => {
+                    const analysis = await geminiAnalyzer.analyzeCarbonFootprint(item.data || item);
+                    return {
+                        ...item,
+                        analysis,
+                        carbonFootprint: analysis.carbonFootprint.perUnit
+                    };
+                }));
+
+                // Calculate totals
+                let totalCarbonFootprint = 0;
+                let totalWaterUsage = 0;
+                let totalTrees = 0;
+                let totalMiles = 0;
+                itemsWithAnalysis.forEach(item => {
+                    totalCarbonFootprint += item.carbonFootprint;
+                    totalWaterUsage += item.analysis.waterUsage.perUnit;
+                    totalTrees += item.analysis.environmentalEquivalents.treesAbsorbed;
+                    totalMiles += item.analysis.environmentalEquivalents.milesDriven;
+                });
+
+                // Sort items by CO2 footprint
+                const sortedItems = itemsWithAnalysis.sort((a, b) => b.carbonFootprint - a.carbonFootprint);
+                const worstItem = sortedItems[0];
+
+                // Wait for the tree animation to complete before showing results
+                setTimeout(() => {
+                    // Display advanced shopping results immediately
+                    displayShoppingResults({
+                        items: shoppingList.length,
+                        totalCarbonFootprint,
+                        totalWaterUsage,
+                        totalTrees,
+                        totalMiles,
+                        sortedItems,
+                        recommendations: worstItem?.analysis.recommendations || []
+                    });
+
+                    // Clear shopping list after successful analysis
+                    shoppingList = [];
+                    updateShoppingList();
+                    
+                    // Hide tree progress immediately after showing results
+                    hideTreeProgress();
+                }, 0); // No wait time - show results immediately
+
+            } catch (error) {
+                console.error('Shopping list analysis failed:', error);
+                alert('Failed to analyze shopping list. Please try again.');
+                // Hide tree progress on error
+                hideTreeProgress();
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Analyze Shopping List';
+            }
+        }
+
+        function displayShoppingResults(summary) {
+            const modal = document.getElementById('resultsModal');
+            const content = document.getElementById('resultsContent');
+            const worstItem = summary.sortedItems[0];
+            content.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>🛒 Shopping List Analysis</h3>
+                    <p style="color: #666; font-size: 14px;">Total Items: ${summary.items}</p>
+                </div>
+                <div class="carbon-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">${summary.totalCarbonFootprint.toFixed(2)}</div>
+                        <div class="metric-label">Total kg CO₂</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${Math.round(summary.totalWaterUsage)}</div>
+                        <div class="metric-label">Total Water Usage (L)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(summary.totalTrees * 1000).toFixed(1)}</div>
+                        <div class="metric-label">Trees Required (per 1000)</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${(summary.totalMiles * 1000).toFixed(1)}</div>
+                        <div class="metric-label">Miles Driven (per 1000)</div>
+                    </div>
+                </div>
+                <div style="margin: 20px 0; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h4 style="color: #4CAF50; margin-bottom: 15px;">🧾 CO₂ Receipt</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e0e0e0;">
+                                <th style="text-align: left; padding: 10px; color: #666;">Item</th>
+                                <th style="text-align: right; padding: 10px; color: #666;">CO₂/Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${summary.sortedItems.map(item => `
+                                <tr style="border-bottom: 1px solid #f0f0f0;">
+                                    <td style="padding: 12px;">${item.name}</td>
+                                    <td style="text-align: right; padding: 12px; color: ${
+                                        item.carbonFootprint > 5 ? '#ff4444' : 
+                                        item.carbonFootprint > 2 ? '#ffa726' : '#4CAF50'
+                                    }; font-weight: bold;">
+                                        ${item.carbonFootprint.toFixed(2)} kg
+                                    </td>
+                                </tr>
+                            `).join('')}
+                            <tr style="border-top: 2px solid #e0e0e0; background: #f8f9fa;">
+                                <td style="padding: 12px; font-weight: bold;">Total</td>
+                                <td style="text-align: right; padding: 12px; font-weight: bold;">
+                                    ${summary.totalCarbonFootprint.toFixed(2)} kg
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                ${worstItem ? `
+                    <div style="margin: 20px 0; background: #fff3e0; padding: 20px; border-radius: 12px;">
+                        <h4 style="color: #ff9800; margin-bottom: 15px;">💡 How to Lower Your CO₂ Bill</h4>
+                        <div style="margin-bottom: 15px;">
+                            <p style="margin-bottom: 10px;">Your highest impact item is <strong>${worstItem.name}</strong> at ${worstItem.carbonFootprint.toFixed(2)} kg CO₂ per unit.</p>
+                            <p style="margin-bottom: 10px;">Consider these eco-friendly alternatives:</p>
+                            <ul style="margin: 0; padding-left: 20px;">
+                                ${worstItem.analysis.recommendations.map(rec => `
+                                    <li style="margin: 5px 0; color: #666;">${rec}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                ` : ''}
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">🌱 Eco Tips</h4>
+                    <ul>
+                        <li>Look for products with green certifications</li>
+                        <li>Choose local products when possible to reduce transport emissions</li>
+                        <li>Consider bulk buying to reduce packaging waste</li>
+                    </ul>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
+
+        async function analyzeBarcode(manualBarcode) {
             const input = document.getElementById('barcodeInput');
             const btn = document.getElementById('analyzeBtn');
-            const barcode = input.value.trim().replace(/\D/g, ''); // Remove non-digits
+            const barcode = manualBarcode || input.value.trim().replace(/\D/g, ''); // Remove non-digits
             
             if (!barcode) {
                 alert('Please enter a barcode number');
@@ -365,37 +807,58 @@
                 return;
             }
             
-            // Update UI
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> Analyzing...';
+                        // Update UI
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="loading"></span> Analyzing...';
+                        if (currentMode === 'single') {
+                            showTreeProgress();
+                        }
             
             try {
                 console.log('🔍 Analyzing barcode:', barcode);
-                
                 // Step 1: Fetch product data
                 console.log('📦 Fetching product data...');
                 const productData = await productAPI.getProductData(barcode);
                 console.log('✅ Product data:', productData);
-                
                 if (productData.error) {
                     throw new Error(`Product lookup failed: ${productData.error}`);
                 }
-                
-                // Step 2: Analyze with Gemini
-                console.log('🤖 Analyzing with Gemini...');
-                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
-                console.log('✅ Carbon analysis:', carbonAnalysis);
-                
-                // Step 3: Display results
-                displayCarbonResults(productData, carbonAnalysis);
-                
+                if (currentMode === 'shopping') {
+                    // Add to shopping list
+                    shoppingList.push({
+                        barcode,
+                        name: productData.name || 'Unknown Product',
+                        brand: productData.brand || 'Unknown Brand',
+                        data: productData // Store full data for later analysis
+                    });
+                    updateShoppingList();
+                    input.value = ''; // Clear input after adding
+                } else {
+                    // Single item mode: Analyze with Gemini
+                    console.log('🤖 Analyzing with Gemini...');
+                    const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                    console.log('✅ Carbon analysis:', carbonAnalysis);
+                    
+                    // Wait for the tree animation to complete before showing results
+                    setTimeout(() => {
+                        // Display single item results immediately
+                        displayCarbonResults(productData, carbonAnalysis);
+                        // Hide tree progress immediately after showing results
+                        hideTreeProgress();
+                    }, 0); // No wait time - show results immediately
+                }
             } catch (error) {
                 console.error('❌ Analysis failed:', error);
                 alert(`Analysis failed: ${error.message}`);
+                // Hide tree progress on error
+                if (currentMode === 'single') {
+                    hideTreeProgress();
+                }
             } finally {
                 // Reset UI
                 btn.disabled = false;
-                btn.innerHTML = 'Analyze Carbon Footprint';
+                btn.innerHTML = currentMode === 'shopping' ? 'Add to Shopping List' : 'Analyze Carbon Footprint';
+                input.focus(); // Focus back on input for next entry
             }
         }
 
