@@ -93,13 +93,13 @@ app.get('/api/config', (req, res) => {
 
 // --- Your App Routes ---
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'ai-powered-version.html'));
+    res.sendFile(path.join(__dirname, 'barcode-scanner-http.html'));
 });
 app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, 'react-native-web.html'));
 });
-app.get('/barcode', (req, res) => {
-    res.sendFile(path.join(__dirname, 'barcode-scanner-http.html'));
+app.get('/ai', (req, res) => {
+    res.sendFile(path.join(__dirname, 'ai-powered-version.html'));
 });
 app.get('/shopping', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-carbon-scanner.html'));
