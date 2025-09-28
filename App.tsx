@@ -10,14 +10,17 @@ import ARScreen from './src/screens/ARScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
 import SupplyChainScreen from './src/screens/SupplyChainScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import ShoppingModeScreen from './src/screens/ShoppingModeScreen';
 
-// Types
+
+// TypesOf
 export type RootStackParamList = {
   Home: undefined;
   AR: undefined;
   ProductDetail: { product: Product };
   SupplyChain: { product: Product };
   Profile: undefined;
+  ShoppingMode: undefined;
 };
 
 export interface Product {
@@ -94,6 +97,11 @@ const App: React.FC = () => {
             name="Profile" 
             component={ProfileScreen} 
             options={{ title: 'Profile' }}
+          />
+          <Stack.Screen 
+            name="ShoppingMode" 
+            component={ShoppingModeScreen} 
+            options={{ title: 'Shopping Mode' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

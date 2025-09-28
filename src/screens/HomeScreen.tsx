@@ -108,6 +108,21 @@ const HomeScreen: React.FC = () => {
         </LinearGradient>
       </TouchableOpacity>
 
+      {/* Shopping Mode Button */}
+      <TouchableOpacity
+        style={styles.shoppingButton}
+        onPress={() => navigation.navigate('ShoppingMode')}
+      >
+        <LinearGradient
+          colors={['#2196F3', '#1976D2']}
+          style={styles.shoppingButtonGradient}
+        >
+          <Icon name="shopping-cart" size={28} color="#ffffff" />
+          <Text style={styles.shoppingButtonText}>Shopping Mode</Text>
+          <Text style={styles.shoppingButtonSubtext}>Build a list and see combined impact</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
       {/* Recent Scans */}
       {recentProducts.length > 0 && (
         <View style={styles.recentSection}>
@@ -257,6 +272,32 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   arButtonSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  shoppingButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  shoppingButtonGradient: {
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#2196F3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  shoppingButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  shoppingButtonSubtext: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
   },

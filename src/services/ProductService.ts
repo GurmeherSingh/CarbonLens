@@ -148,3 +148,35 @@ export const getEnvironmentalImpactSummary = (products: Product[]) => {
     productCount: products.length
   };
 };
+
+// Calculate trees equivalent for CO2 (approximate: 1 mature tree absorbs ~21 kg CO2 per year)
+export const calculateTreesEquivalent = (carbonKg: number): number => {
+  return Math.round(carbonKg / 21 * 100) / 100;
+};
+
+// Calculate per-1000 metrics for a single product
+export const calculatePerThousandMetrics = (product: Product) => {
+  return {
+    carbonPerThousand: Math.round(product.carbonFootprint * 1000 * 100) / 100,
+    treesPerThousand: Math.round((product.carbonFootprint * 1000 / 21) * 100) / 100,
+    milesPerThousand: Math.round(product.foodMiles * 1000),
+    waterPerThousand: Math.round(product.waterUsage * 1000)
+  };
+};
+
+// Calculate shopping cart totals
+export const calculateShoppingCartTotals = (products: Product[]) => {
+  const totals = getEnvironmentalImpactSummary(products);
+  const treesEquivalent = calculateTreesEquivalent(totals.totalCarbon);
+  
+  return {
+    ...totals,
+    treesEquivalent,
+    perThousandMetrics: {
+      carbonPerThousand: Math.round(totals.totalCarbon * 1000 * 100) / 100,
+      treesPerThousand: Math.round(treesEquivalent * 1000 * 100) / 100,
+      milesPerThousand: Math.round(totals.totalMiles * 1000),
+      waterPerThousand: Math.round(totals.totalWater * 1000)
+    }
+  };
+};
