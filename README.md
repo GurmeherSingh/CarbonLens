@@ -3,11 +3,11 @@
 CarbonLens is an **AR-powered app** that makes environmental impact visible while you shop. Point your camera at products to see **carbon footprint, water usage, food miles, and packaging impact** in real time.  
 
 <div align="center">
-  <img src="images/image1.jpg" width="150" height="200" style="margin: 10px;">
-  <img src="images/image2.jpg" width="150" height="200" style="margin: 10px;">
-  <img src="images/image3.jpg" width="150" height="200" style="margin: 10px;">
-  <img src="images/image5.jpg" width="150" height="200" style="margin: 10px;">
-  <img src="images/image6.jpg" width="150" height="200" style="margin: 10px;">
+  <img src="images/image1.jpg" width="150" height="250" style="margin: 10px;">
+  <img src="images/image2.jpg" width="150" height="250" style="margin: 10px;">
+  <img src="images/image3.jpg" width="150" height="250" style="margin: 10px;">
+  <img src="images/image5.jpg" width="150" height="250" style="margin: 10px;">
+  <img src="images/image6.jpg" width="150" height="250" style="margin: 10px;">
 </div>
 ---
 
