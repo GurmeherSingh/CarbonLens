@@ -1,7 +1,20 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
-require('dotenv').config();
+const dotenv = require('dotenv');
+
+// Try to load .env from the current directory first, then fall back to parent
+const envPath = path.join(__dirname, '.env');
+const parentEnvPath = path.join(__dirname, '..', '.env');
+
+const result = dotenv.config({ path: envPath }) || dotenv.config({ path: parentEnvPath });
+
+if (result.error) {
+    console.error('❌ Error loading .env file:', result.error);
+} else {
+    console.log('✅ Successfully loaded .env file');
+    console.log('🔑 Gemini API Key status:', process.env.GEMINI_API_KEY ? 'Present' : 'Missing');
+}
 
 const app = express();
 const PORT = 3000; // Using port 3000 for HTTP
@@ -20,9 +33,14 @@ app.get('/gemini-carbon-analyzer.js', (req, res) => {
 
 // API endpoint to get API keys
 app.get('/api/config', (req, res) => {
+    console.log('Environment variables:', {
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+        NODE_ENV: process.env.NODE_ENV
+    });
+    
     res.json({
         googleVisionApiKey: process.env.GOOGLE_CLOUD_VISION_API_KEY,
-        geminiApiKey: process.env.GEMINI_API_KEY
+        geminiApiKey: process.env.GEMINI_API_KEY || 'Not loaded'
     });
 });
 
