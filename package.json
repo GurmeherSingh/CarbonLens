@@ -5,14 +5,21 @@
   "main": "index.js",
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "ios": "react-native run-android",
     "start": "react-native start",
     "test": "jest",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "aws:deploy": "powershell -ExecutionPolicy Bypass -File aws-infrastructure/deploy.ps1",
+    "aws:setup": "powershell -ExecutionPolicy Bypass -File aws-infrastructure/setup-aws.ps1",
+    "aws:test": "node aws-infrastructure/test-endpoints.js"
   },
   "dependencies": {
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/stack": "^6.3.20",
+    "aws-sdk": "^2.1490.0",
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/client-s3": "^3.450.0",
+    "@aws-sdk/client-rekognition": "^3.450.0",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "react": "18.2.0",

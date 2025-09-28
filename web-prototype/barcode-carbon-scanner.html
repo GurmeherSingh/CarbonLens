@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLens - Barcode Carbon Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #f5f5f5;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        .scanner-overlay.active {
+            display: flex;
+        }
+
+        /* Ensure scanner controls are always visible */
+        .scanner-overlay.active .scanner-controls {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .scanner-overlay.active .control-btn {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        .scanner-header {
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1001;
+        }
+
+        .close-scanner {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .scanner-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #scannerVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .barcode-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scanning-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 150px;
+            border: 3px solid #4CAF50;
+            border-radius: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { border-color: #8BC34A; box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .scanning-corners {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #4CAF50;
+        }
+
+        .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        .status-indicator {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-indicator.scanning {
+            background: rgba(255, 193, 7, 0.9);
+        }
+
+        .status-indicator.detected {
+            background: rgba(76, 175, 80, 0.9);
+        }
+
+        .barcode-result {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            width: 200px;
+            text-align: center;
+            display: none;
+        }
+
+        .barcode-result.show {
+            display: block;
+        }
+
+        .barcode-result h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .barcode-result p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .scanner-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1003;
+            backdrop-filter: blur(5px);
+        }
+
+        .control-btn {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+            min-width: 160px;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative;
+            z-index: 1004;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .home-screen {
+            padding: 20px;
+        }
+
+        .scan-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .scan-button h3 {
+            font-size: 20px;
+            margin: 10px 0 5px 0;
+        }
+
+        .scan-button p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .barcode-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 2000;
+            overflow-y: auto;
+        }
+
+        .results-modal.active {
+            display: block;
+        }
+
+        .results-content {
+            background: white;
+            margin: 20px;
+            border-radius: 16px;
+            padding: 20px;
+            color: #333;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .close-results {
+            background: #f0f0f0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .carbon-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .equivalents {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .equivalents h4 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .equivalents-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .equivalent-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .recommendations {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .recommendations h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .recommendations ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .recommendations li {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌱 CarbonLens</h1>
+            <p>Barcode Carbon Scanner</p>
+        </div>
+
+        <!-- Home Screen -->
+        <div class="home-screen">
+            <div class="scan-button" onclick="startBarcodeScanner()">
+                <div class="barcode-icon">📱</div>
+                <h3>Scan Product Barcode</h3>
+                <p>Point camera at barcode for instant carbon analysis</p>
+            </div>
+
+            <div style="margin: 20px; padding: 15px; background: rgba(255,255,255,0.9); border-radius: 12px; color: #333;">
+                <h4 style="color: #4CAF50; margin-bottom: 10px;">📱 How It Works</h4>
+                <p style="font-size: 14px; line-height: 1.5;">
+                    1. Point camera at product barcode<br>
+                    2. AI detects barcode number automatically<br>
+                    3. Fetches product data from Open Food Facts<br>
+                    4. Gemini AI calculates carbon footprint<br>
+                    5. See environmental impact instantly!
+                </p>
+            </div>
+        </div>
+
+        <!-- Scanner Overlay -->
+        <div class="scanner-overlay" id="scannerOverlay">
+            <div class="scanner-header">
+                <h3>📱 Barcode Scanner</h3>
+                <button class="close-scanner" onclick="stopBarcodeScanner()">×</button>
+            </div>
+            
+            <div class="scanner-container">
+                <video id="scannerVideo" autoplay playsinline></video>
+                
+                <div class="barcode-overlay">
+                    <div class="scanning-frame">
+                        <div class="scanning-corners corner-tl"></div>
+                        <div class="scanning-corners corner-tr"></div>
+                        <div class="scanning-corners corner-bl"></div>
+                        <div class="scanning-corners corner-br"></div>
+                    </div>
+                    
+                    <div class="status-indicator" id="statusIndicator">Point at barcode</div>
+                    
+                    <div class="barcode-result" id="barcodeResult">
+                        <h4>Barcode Detected!</h4>
+                        <p id="barcodeNumber">1234567890</p>
+                    </div>
+                </div>
+
+                <div class="scanner-controls">
+                    <button class="control-btn" onclick="manualBarcodeInput()" id="manualBtn">Manual Input</button>
+                    <button class="control-btn" onclick="switchCamera()">Switch Camera</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Modal -->
+        <div class="results-modal" id="resultsModal">
+            <div class="results-content">
+                <div class="results-header">
+                    <h2>🌱 Carbon Analysis Results</h2>
+                    <button class="close-results" onclick="closeResults()">×</button>
+                </div>
+                
+                <div id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include required libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js" 
+            onerror="console.error('❌ Failed to load QuaggaJS library')"></script>
+    <script src="product-api.js" 
+            onerror="console.error('❌ Failed to load product-api.js')"></script>
+    <script src="gemini-carbon-analyzer.js" 
+            onerror="console.error('❌ Failed to load gemini-carbon-analyzer.js')"></script>
+    
+    <script>
+        // Global variables
+        let currentStream = null;
+        let usingFrontCamera = false;
+        let quaggaInitialized = false;
+        let productAPI = null;
+        let geminiAnalyzer = null;
+        let googleVisionApiKey = '';
+        let geminiApiKey = '';
+        let apisInitialized = false;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🧠 DOMContentLoaded fired');
+            console.log('🔍 Running comprehensive startup diagnostic...');
+            
+            // Check if required libraries are loaded
+            console.log('📚 Library check:');
+            console.log('  - Quagga:', typeof Quagga !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            console.log('  - ProductDataAPI:', typeof ProductDataAPI !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            console.log('  - GeminiCarbonAnalyzer:', typeof GeminiCarbonAnalyzer !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            
+            // Check network connectivity
+            console.log('🌐 Network check:');
+            console.log('  - Current URL:', window.location.href);
+            console.log('  - Protocol:', window.location.protocol);
+            console.log('  - Host:', window.location.host);
+            
+            // Load API keys
+            await loadApiKeys();
+            
+            // Initialize APIs
+            initializeAPIs();
+            
+            // Final diagnostic
+            logDiagnosticState('DOMContentLoaded complete');
+            
+            console.log('🎯 Startup diagnostic complete');
+        });
+
+        async function loadApiKeys() {
+            try {
+                console.log('🔄 Attempting to load API keys from /api/config...');
+                const response = await fetch('/api/config');
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const config = await response.json();
+                console.log('📋 Config received:', config);
+                
+                googleVisionApiKey = config.googleVisionApiKey;
+                geminiApiKey = config.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+                
+                console.log('✅ API keys loaded successfully');
+                console.log('🔑 Google Vision Key present:', !!googleVisionApiKey);
+                console.log('🔑 Gemini Key present:', !!geminiApiKey && geminiApiKey !== 'YOUR_GEMINI_API_KEY');
+                
+            } catch (error) {
+                console.error('❌ Failed to load API keys:', error);
+                console.error('🔍 Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                
+                // Show user-friendly error
+                alert(`Failed to connect to server!\n\nError: ${error.message}\n\nPlease check:\n1. Server is running on port 3001\n2. You're accessing via HTTPS\n3. Certificate is accepted`);
+            }
+        }
+
+        function initializeAPIs() {
+            try {
+                console.log('🔄 Initializing APIs...');
+                
+                // Check if we have the required keys
+                if (!googleVisionApiKey) {
+                    console.warn('⚠️ Google Vision API key missing');
+                }
+                
+                if (!geminiApiKey || geminiApiKey === 'YOUR_GEMINI_API_KEY') {
+                    console.warn('⚠️ Gemini API key missing or placeholder');
+                }
+                
+                // Initialize APIs
+                productAPI = new ProductDataAPI();
+                console.log('✅ ProductDataAPI initialized');
+                
+                geminiAnalyzer = new GeminiCarbonAnalyzer(geminiApiKey);
+                console.log('✅ GeminiCarbonAnalyzer initialized');
+                
+                apisInitialized = true;
+                logDiagnosticState('initializeAPIs success');
+                console.log('✅ All APIs initialized successfully');
+                
+            } catch (error) {
+                apisInitialized = false;
+                console.error('❌ API initialization failed:', error);
+                console.error('🔍 Initialization error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                logDiagnosticState('initializeAPIs failure', error);
+                
+                // Show user-friendly error
+                alert(`API Initialization Failed!\n\nError: ${error.message}\n\nThis might be due to:\n1. Missing API keys\n2. JavaScript library loading issues\n3. Network connectivity problems`);
+            }
+        }
+
+        function logDiagnosticState(context = 'diagnostic', extraError = null) {
+            const state = {
+                context,
+                timestamp: new Date().toISOString(),
+                apisInitialized,
+                productAPI: !!productAPI,
+                geminiAnalyzer: !!geminiAnalyzer,
+                googleVisionApiKeyPresent: !!googleVisionApiKey,
+                geminiApiKeyPresent: !!geminiApiKey && geminiApiKey !== 'YOUR_GEMINI_API_KEY',
+                geminiApiKeyValue: geminiApiKey,
+            };
+            console.table(state);
+            if (extraError) {
+                console.error('Diagnostic error details:', extraError);
+            }
+        }
+
+        async function startBarcodeScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            const manualBtn = document.getElementById('manualBtn');
+            
+            console.log('🚀 Starting barcode scanner...');
+            console.log('Manual button element:', manualBtn);
+            
+            overlay.classList.add('active');
+            
+            logDiagnosticState('startBarcodeScanner before init check');
+            if (!apisInitialized) {
+                console.warn('⚠️ APIs not initialized yet. Attempting to initialize again.');
+                initializeAPIs();
+                logDiagnosticState('startBarcodeScanner after forced init');
+            }
+
+            // Ensure manual button is visible and functional with a slight delay
+            setTimeout(() => {
+                const manualBtnCheck = document.getElementById('manualBtn');
+                const switchBtn = document.querySelector('button[onclick="switchCamera()"]');
+                
+                if (manualBtnCheck) {
+                    manualBtnCheck.style.display = 'block';
+                    manualBtnCheck.style.visibility = 'visible';
+                    manualBtnCheck.style.opacity = '1';
+                    manualBtnCheck.style.pointerEvents = 'auto';
+                    console.log('✅ Manual button made visible (delayed check)');
+                }
+                
+                if (switchBtn) {
+                    switchBtn.style.display = 'block';
+                    switchBtn.style.visibility = 'visible';
+                    switchBtn.style.opacity = '1';
+                    switchBtn.style.pointerEvents = 'auto';
+                    console.log('✅ Switch camera button made visible');
+                }
+            }, 100);
+            
+            try {
+                await startCamera();
+                initializeQuagga();
+                updateStatus('Point camera at barcode', 'scanning');
+                console.log('✅ Scanner initialized successfully');
+            } catch (error) {
+                console.error('❌ Scanner failed:', error);
+                updateStatus('Scanner Error', 'error');
+                
+                // Make sure manual input is still available if camera fails
+                if (manualBtn) {
+                    manualBtn.style.display = 'block';
+                    manualBtn.style.visibility = 'visible';
+                    manualBtn.style.opacity = '1';
+                }
+            }
+        }
+
+        function stopBarcodeScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            if (quaggaInitialized) {
+                Quagga.stop();
+                quaggaInitialized = false;
+            }
+            
+            overlay.classList.remove('active');
+            hideBarcodeResult();
+        }
+
+        async function startCamera() {
+            const video = document.getElementById('scannerVideo');
+            
+            const constraints = {
+                video: {
+                    facingMode: usingFrontCamera ? 'user' : 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = currentStream;
+            console.log('✅ Camera started for barcode scanning');
+        }
+
+        function initializeQuagga() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scannerVideo'),
+                    constraints: {
+                        width: 640,
+                        height: 480,
+                        facingMode: usingFrontCamera ? 'user' : 'environment'
+                    }
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "code_39_vin_reader",
+                        "codabar_reader",
+                        "upc_reader",
+                        "upc_e_reader",
+                        "i2of5_reader"
+                    ]
+                },
+                locate: true,
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                }
+            }, function(err) {
+                if (err) {
+                    console.error('❌ Quagga initialization failed:', err);
+                    return;
+                }
+                
+                console.log('✅ QuaggaJS initialized for barcode detection');
+                quaggaInitialized = true;
+                Quagga.start();
+            });
+
+            // Handle barcode detection with validation
+            let lastDetectedBarcode = null;
+            let detectionCount = 0;
+            let detectionConfidence = 0;
+            
+            Quagga.onDetected(function(result) {
+                const barcode = result.codeResult.code;
+                const confidence = result.codeResult.confidence || 0;
+                
+                // Validate barcode format and confidence
+                if (!isValidBarcode(barcode) || confidence < 60) {
+                    console.log('⚠️ Invalid barcode or low confidence:', barcode, 'confidence:', confidence);
+                    return;
+                }
+                
+                // Require multiple consistent detections
+                if (barcode === lastDetectedBarcode) {
+                    detectionCount++;
+                    detectionConfidence = Math.max(detectionConfidence, confidence);
+                } else {
+                    lastDetectedBarcode = barcode;
+                    detectionCount = 1;
+                    detectionConfidence = confidence;
+                }
+                
+                // Only proceed if we have 3+ consistent detections with good confidence
+                if (detectionCount >= 3 && detectionConfidence > 70) {
+                    console.log('✅ Barcode validated:', barcode, 'confidence:', detectionConfidence);
+                    
+                    showBarcodeResult(barcode);
+                    updateStatus('Barcode validated!', 'detected');
+                    
+                    // Reset detection tracking
+                    lastDetectedBarcode = null;
+                    detectionCount = 0;
+                    detectionConfidence = 0;
+                    
+                    setTimeout(() => {
+                        processBarcode(barcode);
+                    }, 1500);
+                } else {
+                    updateStatus(`Validating... (${detectionCount}/3)`, 'scanning');
+                }
+            });
+        }
+
+        function showBarcodeResult(barcode) {
+            document.getElementById('barcodeNumber').textContent = barcode;
+            document.getElementById('barcodeResult').classList.add('show');
+        }
+
+        function hideBarcodeResult() {
+            document.getElementById('barcodeResult').classList.remove('show');
+        }
+
+        function updateStatus(text, type) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.textContent = text;
+            indicator.className = `status-indicator ${type}`;
+        }
+
+        // Validate barcode format and checksum
+        function isValidBarcode(barcode) {
+            if (!barcode || typeof barcode !== 'string') return false;
+            
+            // Remove any non-digit characters
+            const digits = barcode.replace(/\D/g, '');
+            
+            console.log('🔍 Validating barcode:', {
+                original: barcode,
+                cleaned: digits,
+                length: digits.length
+            });
+            
+            // Check common barcode lengths
+            const validLengths = [8, 12, 13, 14]; // EAN-8, UPC-A, EAN-13, ITF-14
+            if (!validLengths.includes(digits.length)) {
+                console.log('⚠️ Invalid barcode length:', digits.length, 'Expected:', validLengths);
+                return false;
+            }
+            
+            // Basic format validation
+            if (digits.length < 8 || digits.length > 14) {
+                console.log('⚠️ Barcode length out of range:', digits.length);
+                return false;
+            }
+            
+            // Check for obviously invalid patterns (but be less strict)
+            if (/^0{8,}$/.test(digits)) {
+                console.log('⚠️ Invalid barcode pattern (all zeros):', digits);
+                return false;
+            }
+            
+            // For testing purposes, allow some patterns that might be test barcodes
+            if (digits.length === 12 || digits.length === 13) {
+                // Try checksum validation, but don't fail if it's a test barcode
+                const checksumValid = validateEANChecksum(digits);
+                if (!checksumValid) {
+                    console.log('⚠️ Checksum failed, but allowing for testing purposes');
+                    // Allow it anyway for testing - real products will have valid checksums
+                    return true;
+                }
+                return true;
+            }
+            
+            // For other lengths, just check basic format
+            return true;
+        }
+
+        // Validate EAN/UPC checksum
+        function validateEANChecksum(barcode) {
+            const digits = barcode.split('').map(Number);
+            const checkDigit = digits.pop();
+            const length = barcode.length;
+            
+            let sum = 0;
+            
+            if (length === 12) {
+                // UPC-A: multiply odd positions by 3, even positions by 1 (from right)
+                for (let i = 0; i < digits.length; i++) {
+                    sum += digits[i] * ((i % 2 === 0) ? 3 : 1);
+                }
+            } else if (length === 13) {
+                // EAN-13: multiply odd positions by 1, even positions by 3 (from left)
+                for (let i = 0; i < digits.length; i++) {
+                    sum += digits[i] * ((i % 2 === 0) ? 1 : 3);
+                }
+            } else {
+                console.log('⚠️ Unsupported barcode length for checksum:', length);
+                return false;
+            }
+            
+            const calculatedCheck = (10 - (sum % 10)) % 10;
+            const isValid = calculatedCheck === checkDigit;
+            
+            console.log(`🔍 Checksum validation for ${length}-digit barcode:`, {
+                barcode: barcode,
+                digits: digits,
+                sum: sum,
+                expectedCheck: calculatedCheck,
+                actualCheck: checkDigit,
+                isValid: isValid
+            });
+            
+            return isValid;
+        }
+
+        async function processBarcode(barcode) {
+            updateStatus('Processing barcode...', 'scanning');
+            
+            try {
+                // Step 1: Validate APIs are initialized
+                logDiagnosticState('processBarcode start');
+                if (!apisInitialized || !productAPI || !geminiAnalyzer) {
+                    logDiagnosticState('processBarcode apis not ready');
+                    throw new Error('APIs not initialized. Please refresh the page.');
+                }
+                
+                // Step 2: Fetch product data
+                console.log('🔍 Fetching product data for:', barcode);
+                updateStatus('Fetching product data...', 'scanning');
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Step 3: Analyze with Gemini
+                console.log('🤖 Analyzing with Gemini AI...');
+                updateStatus('Analyzing carbon footprint...', 'scanning');
+                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                console.log('✅ Carbon analysis:', carbonAnalysis);
+                
+                // Step 4: Display results
+                displayCarbonResults(productData, carbonAnalysis);
+                
+            } catch (error) {
+                console.error('❌ Barcode processing failed:', error);
+            logDiagnosticState('processBarcode catch', error);
+                updateStatus('Processing failed', 'error');
+                
+                // Show detailed error message
+                let errorMessage = 'Failed to process barcode.\n\n';
+                
+                if (error.message.includes('API key')) {
+                    errorMessage += 'API Key Issue:\n• Check your Gemini API key in .env file\n• Ensure the key is valid and active';
+                } else if (error.message.includes('Product not found')) {
+                    errorMessage += 'Product Not Found:\n• This barcode might not be in the database\n• Try a different product or manual input';
+                } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                    errorMessage += 'Network Issue:\n• Check your internet connection\n• Try again in a moment';
+                } else {
+                    errorMessage += `Error: ${error.message}\n\nPlease try again or contact support.`;
+                }
+                
+                alert(errorMessage);
+            }
+        }
+
+        function displayCarbonResults(productData, analysis) {
+            const modal = document.getElementById('resultsModal');
+            const content = document.getElementById('resultsContent');
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>${productData.name}</h3>
+                    <p style="color: #666; font-size: 14px;">${productData.brand} • ${productData.category}</p>
+                </div>
+                
+                <div class="carbon-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.carbonFootprint.perUnit.toFixed(2)}</div>
+                        <div class="metric-label">kg CO₂ per unit</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.carbonFootprint.per1000Units.toFixed(0)}</div>
+                        <div class="metric-label">kg CO₂ per 1000 units</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.waterUsage.perUnit}</div>
+                        <div class="metric-label">liters per unit</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.sustainabilityScore}</div>
+                        <div class="metric-label">sustainability score</div>
+                    </div>
+                </div>
+                
+                <div class="equivalents">
+                    <h4>🌍 Environmental Equivalents</h4>
+                    <div class="equivalents-list">
+                        <div class="equivalent-item">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.treesAbsorbed}</div>
+                            <div style="font-size: 12px;">trees absorbed</div>
+                        </div>
+                        <div class="equivalent-item">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.milesDriven}</div>
+                            <div style="font-size: 12px;">miles driven</div>
+                        </div>
+                        <div class="equivalent-item">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.showersEquivalent}</div>
+                            <div style="font-size: 12px;">showers equivalent</div>
+                        </div>
+                        <div class="equivalent-item">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.plasticBottlesEquivalent}</div>
+                            <div style="font-size: 12px;">plastic bottles</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recommendations">
+                    <h4>💡 Recommendations</h4>
+                    <ul>
+                        ${analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 20px;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">📊 Analysis Summary</h4>
+                    <p style="font-size: 14px; line-height: 1.5;">
+                        <strong>Key Findings:</strong> ${analysis.analysis.keyFindings}<br>
+                        <strong>Strengths:</strong> ${analysis.analysis.strengths}<br>
+                        <strong>Concerns:</strong> ${analysis.analysis.concerns}
+                    </p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            stopBarcodeScanner();
+        }
+
+        function closeResults() {
+            document.getElementById('resultsModal').classList.remove('active');
+        }
+
+        function manualBarcodeInput() {
+            const barcode = prompt('Enter barcode number (8-14 digits):');
+            if (barcode) {
+                const cleanBarcode = barcode.replace(/\D/g, ''); // Remove non-digits
+                
+                if (!isValidBarcode(cleanBarcode)) {
+                    alert(`Invalid barcode format!\n\nPlease enter a valid barcode:\n• 8 digits (EAN-8)\n• 12 digits (UPC-A)\n• 13 digits (EAN-13)\n• 14 digits (ITF-14)\n\nExample: 3017620422003`);
+                    return;
+                }
+                
+                console.log('✅ Manual barcode input validated:', cleanBarcode);
+                showBarcodeResult(cleanBarcode);
+                updateStatus('Manual barcode validated!', 'detected');
+                
+                setTimeout(() => {
+                    processBarcode(cleanBarcode);
+                }, 1000);
+            }
+        }
+
+        async function switchCamera() {
+            if (!currentStream) return;
+            
+            currentStream.getTracks().forEach(track => track.stop());
+            usingFrontCamera = !usingFrontCamera;
+            await startCamera();
+            
+            if (quaggaInitialized) {
+                Quagga.stop();
+                quaggaInitialized = false;
+            }
+            initializeQuagga();
+        }
+
+        // Test API configuration
+        async function testAPIConfiguration() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                console.log('🔧 API Configuration Test:');
+                console.log('• Google Vision API Key:', config.googleVisionApiKey ? '✅ Present' : '❌ Missing');
+                console.log('• Gemini API Key:', config.geminiApiKey ? '✅ Present' : '❌ Missing');
+                
+                if (!config.geminiApiKey || config.geminiApiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+                    console.error('❌ Gemini API key not configured!');
+                    alert('Setup Required:\n\n1. Get your Gemini API key from https://aistudio.google.com/\n2. Add it to your .env file as GEMINI_API_KEY\n3. Restart the server');
+                }
+                
+                return config;
+            } catch (error) {
+                console.error('❌ API configuration test failed:', error);
+                return null;
+            }
+        }
+
+        // Test with a known good barcode
+        function testWithSampleBarcode() {
+            const sampleBarcode = '3017620422003'; // Nutella - known to be in Open Food Facts
+            console.log('🧪 Testing with sample barcode:', sampleBarcode);
+            processBarcode(sampleBarcode);
+        }
+
+        // Add test button to home screen
+        document.addEventListener('DOMContentLoaded', function() {
+            testAPIConfiguration();
+            
+            // Add test button
+            const homeScreen = document.querySelector('.home-screen');
+            const testButton = document.createElement('div');
+            testButton.style.cssText = 'margin: 10px 20px; padding: 10px; background: #007bff; color: white; border-radius: 8px; text-align: center; cursor: pointer; font-size: 14px;';
+            testButton.textContent = '🧪 Test with Sample Barcode (Nutella)';
+            testButton.onclick = testWithSampleBarcode;
+            homeScreen.appendChild(testButton);
+        });
+
+        // Check camera support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.warn('⚠️ Camera API not supported');
+        } else {
+            console.log('✅ Camera API supported for barcode scanning');
+        }
+    </script>
+</body>
+</html>

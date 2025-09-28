@@ -1,8 +1,10 @@
 import { Product } from '../../App';
+import AWSService from './AWSService';
 
-// Mock Firebase service - in a real app, this would use actual Firebase SDK
+// AWS-powered service replacing Firebase - uses DynamoDB and S3
 export class FirebaseService {
   private static instance: FirebaseService;
+  private awsService: AWSService;
   private products: Product[] = [];
 
   static getInstance(): FirebaseService {
@@ -12,13 +14,20 @@ export class FirebaseService {
     return FirebaseService.instance;
   }
 
-  // Initialize Firebase (mock implementation)
+  constructor() {
+    this.awsService = AWSService.getInstance();
+  }
+
+  // Initialize AWS services (replacing Firebase)
   async initialize(): Promise<void> {
     try {
-      console.log('Firebase initialized successfully');
-      // In a real app, this would initialize Firebase SDK
+      if (this.awsService.isServiceInitialized()) {
+        console.log('✅ AWS services initialized successfully');
+      } else {
+        console.log('⚠️ AWS services not available, using local storage fallback');
+      }
     } catch (error) {
-      console.error('Firebase initialization error:', error);
+      console.error('AWS services initialization error:', error);
       throw error;
     }
   }
@@ -26,11 +35,15 @@ export class FirebaseService {
   // Save product scan to user's history
   async saveProductScan(userId: string, product: Product): Promise<void> {
     try {
-      // Mock implementation - in real app, this would save to Firestore
-      console.log(`Saving product scan for user ${userId}:`, product.name);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (this.awsService.isServiceInitialized()) {
+        // Use AWS service to save scan
+        await this.awsService.saveProductScan(userId, product);
+        console.log(`✅ Product scan saved to AWS for user ${userId}:`, product.name);
+      } else {
+        // Fallback to local storage
+        console.log(`⚠️ Saving product scan locally for user ${userId}:`, product.name);
+        this.products.push({ ...product, userId, timestamp: new Date().toISOString() });
+      }
     } catch (error) {
       console.error('Error saving product scan:', error);
       throw error;
@@ -40,14 +53,17 @@ export class FirebaseService {
   // Get user's scan history
   async getUserScanHistory(userId: string, limit: number = 50): Promise<Product[]> {
     try {
-      // Mock implementation - in real app, this would fetch from Firestore
-      console.log(`Fetching scan history for user ${userId}`);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Return mock data
-      return [];
+      if (this.awsService.isServiceInitialized()) {
+        // Use AWS service to get scan history
+        const scans = await this.awsService.getUserScanHistory(userId, limit);
+        console.log(`✅ Retrieved ${scans.length} scans from AWS for user ${userId}`);
+        return scans;
+      } else {
+        // Fallback to local storage
+        console.log(`⚠️ Fetching scan history locally for user ${userId}`);
+        const userScans = this.products.filter(p => p.userId === userId);
+        return userScans.slice(0, limit);
+      }
     } catch (error) {
       console.error('Error fetching scan history:', error);
       throw error;
@@ -57,17 +73,22 @@ export class FirebaseService {
   // Get user's sustainability score
   async getUserSustainabilityScore(userId: string): Promise<number> {
     try {
-      // Mock implementation - in real app, this would calculate from user's scan history
-      console.log(`Fetching sustainability score for user ${userId}`);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Return mock score
-      return Math.floor(Math.random() * 40) + 60; // Random score between 60-100
+      if (this.awsService.isServiceInitialized()) {
+        // Use AWS service to get user analytics
+        const analytics = await this.awsService.getUserAnalytics(userId);
+        return analytics.sustainabilityScore?.overall || 50;
+      } else {
+        // Fallback calculation
+        console.log(`⚠️ Calculating sustainability score locally for user ${userId}`);
+        const userScans = this.products.filter(p => p.userId === userId);
+        if (userScans.length === 0) return 50;
+        
+        const avgScore = userScans.reduce((sum, p) => sum + (p.sustainabilityScore || 50), 0) / userScans.length;
+        return Math.round(avgScore);
+      }
     } catch (error) {
       console.error('Error fetching sustainability score:', error);
-      throw error;
+      return 50; // Default score
     }
   }
 
@@ -110,17 +131,24 @@ export class FirebaseService {
   // Search products in database
   async searchProducts(query: string, limit: number = 20): Promise<Product[]> {
     try {
-      // Mock implementation - in real app, this would search Firestore
-      console.log(`Searching products with query: ${query}`);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Return mock search results
-      return [];
+      if (this.awsService.isServiceInitialized()) {
+        // Use AWS service to search products
+        const products = await this.awsService.searchProducts(query, limit);
+        console.log(`✅ Found ${products.length} products from AWS matching "${query}"`);
+        return products;
+      } else {
+        // Fallback to local search
+        console.log(`⚠️ Searching products locally with query: ${query}`);
+        const filteredProducts = this.products.filter(p => 
+          p.name?.toLowerCase().includes(query.toLowerCase()) ||
+          p.category?.toLowerCase().includes(query.toLowerCase()) ||
+          p.brand?.toLowerCase().includes(query.toLowerCase())
+        );
+        return filteredProducts.slice(0, limit);
+      }
     } catch (error) {
       console.error('Error searching products:', error);
-      throw error;
+      return [];
     }
   }
 

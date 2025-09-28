@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLens - Barcode Scanner (HTTP)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #f5f5f5;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .home-screen {
+            padding: 20px;
+        }
+
+        .manual-input-section {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .manual-input-section h3 {
+            font-size: 20px;
+            margin: 10px 0 15px 0;
+        }
+
+        .manual-input-section p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .barcode-input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .analyze-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .analyze-btn:hover {
+            background: white;
+            color: #4CAF50;
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .camera-note {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #856404;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .camera-note h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .info-section {
+            margin: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 12px;
+            color: #333;
+        }
+
+        .info-section h4 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 2000;
+            overflow-y: auto;
+        }
+
+        .results-modal.active {
+            display: block;
+        }
+
+        .results-content {
+            background: white;
+            margin: 20px;
+            border-radius: 16px;
+            padding: 20px;
+            color: #333;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .close-results {
+            background: #f0f0f0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .carbon-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌱 CarbonLens</h1>
+            <p>Barcode Carbon Scanner (HTTP)</p>
+        </div>
+
+        <!-- Home Screen -->
+        <div class="home-screen">
+            <div class="manual-input-section">
+                <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
+                <h3>Enter Product Barcode</h3>
+                <p>Type or paste a product barcode for instant carbon analysis</p>
+                <input type="text" class="barcode-input" id="barcodeInput" placeholder="Enter barcode (e.g., 3017620422003)" maxlength="14">
+                <button class="analyze-btn" onclick="analyzeBarcode()" id="analyzeBtn">Analyze Carbon Footprint</button>
+            </div>
+
+            <div class="camera-note">
+                <h4>📷 Camera Note</h4>
+                <p>Camera scanning requires HTTPS. For camera access, use the HTTPS version at <strong>https://localhost:3001/barcode</strong> (you'll need to accept the security certificate).</p>
+            </div>
+
+            <div class="info-section">
+                <h4 style="color: #4CAF50; margin-bottom: 10px;">📱 How It Works</h4>
+                <p style="font-size: 14px; line-height: 1.5;">
+                    1. Enter a product barcode manually<br>
+                    2. Fetches product data from Open Food Facts<br>
+                    3. Gemini AI calculates carbon footprint<br>
+                    4. See environmental impact instantly!<br><br>
+                    <strong>Try these sample barcodes:</strong><br>
+                    • 3017620422003 (Nutella)<br>
+                    • 012000221545 (Starry Soda)<br>
+                    • 7622210449283 (Toblerone)
+                </p>
+            </div>
+        </div>
+
+        <!-- Results Modal -->
+        <div class="results-modal" id="resultsModal">
+            <div class="results-content">
+                <div class="results-header">
+                    <h2>🌱 Carbon Analysis Results</h2>
+                    <button class="close-results" onclick="closeResults()">×</button>
+                </div>
+                
+                <div id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include required libraries -->
+    <script src="product-api.js" onerror="console.error('❌ Failed to load product-api.js')"></script>
+    <script src="gemini-carbon-analyzer.js" onerror="console.error('❌ Failed to load gemini-carbon-analyzer.js')"></script>
+    
+    <script>
+        // Global variables
+        let productAPI = null;
+        let geminiAnalyzer = null;
+        let googleVisionApiKey = '';
+        let geminiApiKey = '';
+        let apisInitialized = false;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🧠 HTTP version loaded');
+            console.log('🔍 Running startup diagnostic...');
+            
+            // Check if required libraries are loaded
+            console.log('📚 Library check:');
+            console.log('  - ProductDataAPI:', typeof ProductDataAPI !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            console.log('  - GeminiCarbonAnalyzer:', typeof GeminiCarbonAnalyzer !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            
+            // Load API keys
+            await loadApiKeys();
+            
+            // Initialize APIs
+            initializeAPIs();
+            
+            console.log('🎯 Startup complete');
+        });
+
+        async function loadApiKeys() {
+            try {
+                console.log('🔄 Loading API keys from /api/config...');
+                const response = await fetch('/api/config');
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const config = await response.json();
+                console.log('📋 Config received:', config);
+                
+                googleVisionApiKey = config.googleVisionApiKey;
+                geminiApiKey = config.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+                
+                console.log('✅ API keys loaded successfully');
+                console.log('🔑 Google Vision Key present:', !!googleVisionApiKey);
+                console.log('🔑 Gemini Key present:', !!geminiApiKey && geminiApiKey !== 'YOUR_GEMINI_API_KEY');
+                
+            } catch (error) {
+                console.error('❌ Failed to load API keys:', error);
+                alert(`Failed to connect to server!\n\nError: ${error.message}\n\nPlease check that the server is running on port 3000`);
+            }
+        }
+
+        function initializeAPIs() {
+            try {
+                console.log('🔄 Initializing APIs...');
+                
+                productAPI = new ProductDataAPI();
+                console.log('✅ ProductDataAPI initialized');
+                
+                geminiAnalyzer = new GeminiCarbonAnalyzer(geminiApiKey);
+                console.log('✅ GeminiCarbonAnalyzer initialized');
+                
+                apisInitialized = true;
+                console.log('✅ All APIs initialized successfully');
+                
+            } catch (error) {
+                apisInitialized = false;
+                console.error('❌ API initialization failed:', error);
+                alert(`API Initialization Failed!\n\nError: ${error.message}`);
+            }
+        }
+
+        async function analyzeBarcode() {
+            const input = document.getElementById('barcodeInput');
+            const btn = document.getElementById('analyzeBtn');
+            const barcode = input.value.trim().replace(/\D/g, ''); // Remove non-digits
+            
+            if (!barcode) {
+                alert('Please enter a barcode number');
+                return;
+            }
+            
+            if (barcode.length < 8 || barcode.length > 14) {
+                alert('Please enter a valid barcode (8-14 digits)');
+                return;
+            }
+            
+            if (!apisInitialized) {
+                alert('APIs not initialized. Please refresh the page.');
+                return;
+            }
+            
+            // Update UI
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Analyzing...';
+            
+            try {
+                console.log('🔍 Analyzing barcode:', barcode);
+                
+                // Step 1: Fetch product data
+                console.log('📦 Fetching product data...');
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Step 2: Analyze with Gemini
+                console.log('🤖 Analyzing with Gemini...');
+                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                console.log('✅ Carbon analysis:', carbonAnalysis);
+                
+                // Step 3: Display results
+                displayCarbonResults(productData, carbonAnalysis);
+                
+            } catch (error) {
+                console.error('❌ Analysis failed:', error);
+                alert(`Analysis failed: ${error.message}`);
+            } finally {
+                // Reset UI
+                btn.disabled = false;
+                btn.innerHTML = 'Analyze Carbon Footprint';
+            }
+        }
+
+        function displayCarbonResults(productData, analysis) {
+            const modal = document.getElementById('resultsModal');
+            const content = document.getElementById('resultsContent');
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>${productData.name}</h3>
+                    <p style="color: #666; font-size: 14px;">${productData.brand} • ${productData.category}</p>
+                </div>
+                
+                <div class="carbon-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.carbonFootprint.perUnit.toFixed(2)}</div>
+                        <div class="metric-label">kg CO₂ per unit</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.sustainabilityScore}</div>
+                        <div class="metric-label">sustainability score</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">🌍 Environmental Equivalent (per 1000 units)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.carbonFootprint.per1000Units.toFixed(2)}</div>
+                            <div style="font-size: 12px;">kg CO₂</div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.treesPer1000Units ? analysis.environmentalEquivalents.treesPer1000Units.toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">🌳 trees</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.milesDriven ? (analysis.environmentalEquivalents.milesDriven * 1000).toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">miles driven</div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.waterInGallons ? (analysis.environmentalEquivalents.waterInGallons * 1000).toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">gallons of water</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">💡 Recommendations</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        ${analysis.recommendations.map(rec => `<li style="margin: 5px 0; font-size: 14px;">${rec}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 20px;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">📊 Analysis Summary</h4>
+                    <p style="font-size: 14px; line-height: 1.5;">
+                        <strong>Key Findings:</strong> ${analysis.analysis.keyFindings}<br>
+                        <strong>Strengths:</strong> ${analysis.analysis.strengths}<br>
+                        <strong>Concerns:</strong> ${analysis.analysis.concerns}
+                    </p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeResults() {
+            document.getElementById('resultsModal').classList.remove('active');
+        }
+
+        // Allow Enter key to trigger analysis
+        document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeBarcode();
+            }
+        });
+    </script>
+</body>
+</html>

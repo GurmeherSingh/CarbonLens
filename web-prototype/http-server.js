@@ -1,14 +1,22 @@
 const express = require('express');
 const path = require('path');
-const https = require('https');
-const fs = require('fs');
+const http = require('http');
 require('dotenv').config();
 
 const app = express();
-const PORT = 3001;
+const PORT = 3000; // Using port 3000 for HTTP
 
-// Serve static files for assets only (not HTML files)
+// Serve static files (JS, CSS, images) but not HTML files
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+// Serve JavaScript files specifically
+app.get('/product-api.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'product-api.js'));
+});
+
+app.get('/gemini-carbon-analyzer.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'gemini-carbon-analyzer.js'));
+});
 
 // API endpoint to get API keys
 app.get('/api/config', (req, res) => {
@@ -28,8 +36,13 @@ app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, 'react-native-web.html'));
 });
 
-// Serve the barcode scanner at /barcode
+// Serve the barcode scanner at /barcode (HTTP optimized version)
 app.get('/barcode', (req, res) => {
+    res.sendFile(path.join(__dirname, 'barcode-scanner-http.html'));
+});
+
+// Serve the HTTPS camera version at /camera
+app.get('/camera', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-carbon-scanner.html'));
 });
 
@@ -43,21 +56,13 @@ app.get('/debug', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-connection.html'));
 });
 
-// Create HTTPS server with self-signed certificate
-const selfsigned = require('selfsigned');
-const attrs = [{ name: 'commonName', value: 'localhost' }];
-const pems = selfsigned.generate(attrs, { days: 365 });
-
-const options = {
-    key: pems.private,
-    cert: pems.cert
-};
-
-const server = https.createServer(options, app);
+// Create HTTP server (no SSL certificates needed)
+const server = http.createServer(app);
 
 server.listen(PORT, () => {
-    console.log(`🌐 CarbonLens AI Server running at https://localhost:${PORT}`);
-    console.log(`📱 For iPhone: https://YOUR_IP:${PORT}`);
+    console.log(`🌐 CarbonLens HTTP Server running at http://localhost:${PORT}`);
+    console.log(`📱 For iPhone: http://YOUR_IP:${PORT}`);
     console.log(`🔑 API Key loaded from .env file`);
-    console.log(`📷 Camera access enabled with HTTPS`);
+    console.log(`📷 Note: Camera access may be limited on HTTP (HTTPS recommended for production)`);
+    console.log(`🚀 No SSL certificate issues - should work immediately!`);
 });

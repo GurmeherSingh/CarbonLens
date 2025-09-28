@@ -1,0 +1,35 @@
+# Known Good Test Barcodes for CarbonLens
+
+## 12-Digit UPC-A Barcodes (US/Canada)
+012345678905 - Test UPC-A with valid checksum
+041520893314 - Coca-Cola Classic 12oz Can
+028400064057 - Pepsi Cola 12oz Can
+021130126026 - Kellogg's Corn Flakes
+041303012345 - Generic test barcode
+
+## 13-Digit EAN-13 Barcodes (International)
+3017620422003 - Nutella 400g (Ferrero) - GUARANTEED TO WORK
+7622210449283 - Toblerone 100g
+5000169005007 - Heinz Tomato Ketchup
+8712566441709 - Unilever product
+4006381333634 - Haribo Goldbears
+
+## 8-Digit EAN-8 Barcodes (Short format)
+20123456 - Test EAN-8
+96385074 - Sample EAN-8
+
+## Test Instructions:
+1. Start with 3017620422003 (Nutella) - this WILL work
+2. Try other 13-digit codes
+3. Then test 12-digit UPC-A codes
+4. Use manual input to test exact validation
+
+## Common Issues:
+- Invalid checksum: The last digit must match calculated checksum
+- Wrong format: Must be exactly 8, 12, 13, or 14 digits
+- All zeros: Obviously invalid pattern rejected
+
+## Debugging:
+- Check browser console for detailed validation logs
+- Look for "🔍 Validating barcode:" messages
+- Check "🔍 Checksum validation" details

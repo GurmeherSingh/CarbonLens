@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLens Connection Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #333; background: #2a2a2a; }
+        .success { background: #004400; }
+        .error { background: #440000; color: #ff4444; }
+        button { background: #00aa00; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #111; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 CarbonLens Connection Test</h1>
+    
+    <div class="test">
+        <h3>Server Connection Test</h3>
+        <button onclick="testServerConnection()">Test Server Connection</button>
+        <div id="serverResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>API Config Test</h3>
+        <button onclick="testAPIConfig()">Test API Config</button>
+        <div id="apiResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>JavaScript Libraries Test</h3>
+        <button onclick="testLibraries()">Test Libraries</button>
+        <div id="librariesResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>Full Diagnostic</h3>
+        <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+        <div id="diagnosticResult"></div>
+    </div>
+
+    <script>
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            div.className = isError ? 'error' : 'success';
+            element.appendChild(div);
+            console.log(message);
+        }
+
+        async function testServerConnection() {
+            const resultDiv = document.getElementById('serverResult');
+            resultDiv.innerHTML = '';
+            
+            try {
+                log('serverResult', '🔄 Testing server connection...');
+                
+                const response = await fetch('/');
+                log('serverResult', `✅ Server responding: ${response.status} ${response.statusText}`);
+                
+                const html = await response.text();
+                log('serverResult', `📄 Response length: ${html.length} characters`);
+                
+            } catch (error) {
+                log('serverResult', `❌ Server connection failed: ${error.message}`, true);
+            }
+        }
+
+        async function testAPIConfig() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = '';
+            
+            try {
+                log('apiResult', '🔄 Testing API config endpoint...');
+                
+                const response = await fetch('/api/config');
+                log('apiResult', `📡 Response: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const config = await response.json();
+                log('apiResult', `✅ Config received successfully`);
+                log('apiResult', `🔑 Google Vision Key: ${config.googleVisionApiKey ? 'Present' : 'Missing'}`);
+                log('apiResult', `🔑 Gemini Key: ${config.geminiApiKey ? 'Present' : 'Missing'}`);
+                
+                resultDiv.innerHTML += `<pre>${JSON.stringify(config, null, 2)}</pre>`;
+                
+            } catch (error) {
+                log('apiResult', `❌ API config test failed: ${error.message}`, true);
+            }
+        }
+
+        function testLibraries() {
+            const resultDiv = document.getElementById('librariesResult');
+            resultDiv.innerHTML = '';
+            
+            log('librariesResult', '🔄 Testing JavaScript libraries...');
+            
+            // Test QuaggaJS
+            if (typeof Quagga !== 'undefined') {
+                log('librariesResult', '✅ QuaggaJS: Loaded');
+            } else {
+                log('librariesResult', '❌ QuaggaJS: Missing', true);
+            }
+            
+            // Test ProductDataAPI
+            if (typeof ProductDataAPI !== 'undefined') {
+                log('librariesResult', '✅ ProductDataAPI: Loaded');
+                try {
+                    const api = new ProductDataAPI();
+                    log('librariesResult', '✅ ProductDataAPI: Can instantiate');
+                } catch (e) {
+                    log('librariesResult', `❌ ProductDataAPI: Cannot instantiate - ${e.message}`, true);
+                }
+            } else {
+                log('librariesResult', '❌ ProductDataAPI: Missing', true);
+            }
+            
+            // Test GeminiCarbonAnalyzer
+            if (typeof GeminiCarbonAnalyzer !== 'undefined') {
+                log('librariesResult', '✅ GeminiCarbonAnalyzer: Loaded');
+                try {
+                    const analyzer = new GeminiCarbonAnalyzer('test-key');
+                    log('librariesResult', '✅ GeminiCarbonAnalyzer: Can instantiate');
+                } catch (e) {
+                    log('librariesResult', `❌ GeminiCarbonAnalyzer: Cannot instantiate - ${e.message}`, true);
+                }
+            } else {
+                log('librariesResult', '❌ GeminiCarbonAnalyzer: Missing', true);
+            }
+        }
+
+        async function runFullDiagnostic() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.innerHTML = '';
+            
+            log('diagnosticResult', '🔄 Running full diagnostic...');
+            
+            // Environment info
+            log('diagnosticResult', `🌐 URL: ${window.location.href}`);
+            log('diagnosticResult', `🔒 Protocol: ${window.location.protocol}`);
+            log('diagnosticResult', `🏠 Host: ${window.location.host}`);
+            log('diagnosticResult', `📱 User Agent: ${navigator.userAgent}`);
+            
+            // Test all components
+            await testServerConnection();
+            await testAPIConfig();
+            testLibraries();
+            
+            log('diagnosticResult', '✅ Full diagnostic complete');
+        }
+
+        // Auto-run diagnostic on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Connection test page loaded');
+        });
+    </script>
+</body>
+</html>
