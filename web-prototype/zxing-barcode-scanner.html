@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarbonLens - ZXing Barcode Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #f5f5f5;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        .scanner-overlay.active {
+            display: flex;
+        }
+
+        .scanner-header {
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1001;
+        }
+
+        .close-scanner {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .scanner-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #scannerVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .barcode-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scanning-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 150px;
+            border: 3px solid #4CAF50;
+            border-radius: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { border-color: #8BC34A; box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .scanning-corners {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #4CAF50;
+        }
+
+        .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        .status-indicator {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-indicator.scanning {
+            background: rgba(255, 193, 7, 0.9);
+        }
+
+        .status-indicator.detected {
+            background: rgba(76, 175, 80, 0.9);
+        }
+
+        .barcode-result {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            width: 200px;
+            text-align: center;
+            display: none;
+        }
+
+        .barcode-result.show {
+            display: block;
+        }
+
+        .barcode-result h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .barcode-result p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .scanner-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1002;
+        }
+
+        .control-btn {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+            min-width: 160px;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .home-screen {
+            padding: 20px;
+        }
+
+        .scan-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .scan-button h3 {
+            font-size: 20px;
+            margin: 10px 0 5px 0;
+        }
+
+        .scan-button p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .barcode-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .manual-input-section {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .manual-input-section h3 {
+            font-size: 20px;
+            margin: 10px 0 15px 0;
+        }
+
+        .barcode-input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .analyze-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .analyze-btn:hover {
+            background: white;
+            color: #4CAF50;
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info-section {
+            margin: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 12px;
+            color: #333;
+        }
+
+        .info-section h4 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .results-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 2000;
+            overflow-y: auto;
+        }
+
+        .results-modal.active {
+            display: block;
+        }
+
+        .results-content {
+            background: white;
+            margin: 20px;
+            border-radius: 16px;
+            padding: 20px;
+            color: #333;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .close-results {
+            background: #f0f0f0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .carbon-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌱 CarbonLens</h1>
+            <p>ZXing Barcode Scanner</p>
+        </div>
+
+        <!-- Home Screen -->
+        <div class="home-screen">
+            <div class="scan-button" onclick="startZXingScanner()">
+                <div class="barcode-icon">📱</div>
+                <h3>Scan Product Barcode</h3>
+                <p>Point camera at barcode for instant carbon analysis</p>
+            </div>
+
+            <div class="manual-input-section">
+                <div style="font-size: 32px; margin-bottom: 10px;">⌨️</div>
+                <h3>Manual Barcode Entry</h3>
+                <p>Type or paste a product barcode for instant carbon analysis</p>
+                <input type="text" class="barcode-input" id="barcodeInput" placeholder="Enter barcode (e.g., 3017620422003)" maxlength="14">
+                <button class="analyze-btn" onclick="analyzeBarcode()" id="analyzeBtn">Analyze Carbon Footprint</button>
+            </div>
+
+            <div class="info-section">
+                <h4 style="color: #4CAF50; margin-bottom: 10px;">📱 Sample Barcodes</h4>
+                <p style="font-size: 14px; line-height: 1.5;">
+                    <strong>Try these sample barcodes:</strong><br>
+                    • 3017620422003 (Nutella)<br>
+                    • 012000221545 (Starry Soda)<br>
+                    • 7622210449283 (Toblerone)
+                </p>
+            </div>
+        </div>
+
+        <!-- Scanner Overlay -->
+        <div class="scanner-overlay" id="scannerOverlay">
+            <div class="scanner-header">
+                <h3>📱 ZXing Barcode Scanner</h3>
+                <button class="close-scanner" onclick="stopZXingScanner()">×</button>
+            </div>
+            
+            <div class="scanner-container">
+                <video id="scannerVideo" autoplay playsinline></video>
+                
+                <div class="barcode-overlay">
+                    <div class="scanning-frame">
+                        <div class="scanning-corners corner-tl"></div>
+                        <div class="scanning-corners corner-tr"></div>
+                        <div class="scanning-corners corner-bl"></div>
+                        <div class="scanning-corners corner-br"></div>
+                    </div>
+                    
+                    <div class="status-indicator" id="statusIndicator">Point at barcode</div>
+                    
+                    <div class="barcode-result" id="barcodeResult">
+                        <h4>Barcode Detected!</h4>
+                        <p id="barcodeNumber">1234567890</p>
+                    </div>
+                </div>
+
+                <div class="scanner-controls">
+                    <button class="control-btn" onclick="manualBarcodeInput()" id="manualBtn">Manual Input</button>
+                    <button class="control-btn" onclick="switchCamera()">Switch Camera</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Modal -->
+        <div class="results-modal" id="resultsModal">
+            <div class="results-content">
+                <div class="results-header">
+                    <h2>🌱 Carbon Analysis Results</h2>
+                    <button class="close-results" onclick="closeResults()">×</button>
+                </div>
+                
+                <div id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include ZXing library -->
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    
+    <!-- Include required libraries -->
+    <script src="product-api.js" onerror="console.error('❌ Failed to load product-api.js')"></script>
+    <script src="gemini-carbon-analyzer.js" onerror="console.error('❌ Failed to load gemini-carbon-analyzer.js')"></script>
+    
+    <script>
+        // Global variables
+        let codeReader = null;
+        let currentStream = null;
+        let usingFrontCamera = false;
+        let productAPI = null;
+        let geminiAnalyzer = null;
+        let googleVisionApiKey = '';
+        let geminiApiKey = '';
+        let apisInitialized = false;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🧠 ZXing scanner loaded');
+            console.log('🔍 Running startup diagnostic...');
+            
+            // Check if required libraries are loaded
+            console.log('📚 Library check:');
+            console.log('  - ZXing:', typeof ZXing !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            console.log('  - ProductDataAPI:', typeof ProductDataAPI !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            console.log('  - GeminiCarbonAnalyzer:', typeof GeminiCarbonAnalyzer !== 'undefined' ? '✅ Loaded' : '❌ Missing');
+            
+            // Initialize ZXing
+            if (typeof ZXing !== 'undefined') {
+                codeReader = new ZXing.BrowserMultiFormatReader();
+                console.log('✅ ZXing initialized');
+            } else {
+                console.error('❌ ZXing library not loaded');
+            }
+            
+            // Load API keys
+            await loadApiKeys();
+            
+            // Initialize APIs
+            initializeAPIs();
+            
+            console.log('🎯 Startup complete');
+        });
+
+        async function loadApiKeys() {
+            try {
+                console.log('🔄 Loading API keys from /api/config...');
+                const response = await fetch('/api/config');
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const config = await response.json();
+                console.log('📋 Config received:', config);
+                
+                googleVisionApiKey = config.googleVisionApiKey;
+                geminiApiKey = config.geminiApiKey || 'YOUR_GEMINI_API_KEY';
+                
+                console.log('✅ API keys loaded successfully');
+                console.log('🔑 Google Vision Key present:', !!googleVisionApiKey);
+                console.log('🔑 Gemini Key present:', !!geminiApiKey && geminiApiKey !== 'YOUR_GEMINI_API_KEY');
+                
+            } catch (error) {
+                console.error('❌ Failed to load API keys:', error);
+                alert(`Failed to connect to server!\n\nError: ${error.message}\n\nPlease check that the server is running on port 3000`);
+            }
+        }
+
+        function initializeAPIs() {
+            try {
+                console.log('🔄 Initializing APIs...');
+                
+                productAPI = new ProductDataAPI();
+                console.log('✅ ProductDataAPI initialized');
+                
+                geminiAnalyzer = new GeminiCarbonAnalyzer(geminiApiKey);
+                console.log('✅ GeminiCarbonAnalyzer initialized');
+                
+                apisInitialized = true;
+                console.log('✅ All APIs initialized successfully');
+                
+            } catch (error) {
+                apisInitialized = false;
+                console.error('❌ API initialization failed:', error);
+                alert(`API Initialization Failed!\n\nError: ${error.message}`);
+            }
+        }
+
+        async function startZXingScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            overlay.classList.add('active');
+            
+            try {
+                // Get available video devices
+                const videoInputDevices = await codeReader.listVideoInputDevices();
+                console.log('📹 Available cameras:', videoInputDevices);
+                
+                // Use back camera if available, otherwise use first available
+                const backCamera = videoInputDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear')
+                );
+                
+                const selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+                console.log('📷 Using camera:', selectedDeviceId);
+                
+                // Start decoding from video device
+                await codeReader.decodeFromVideoDevice(
+                    selectedDeviceId,
+                    document.getElementById('scannerVideo'),
+                    (result, error) => {
+                        if (result) {
+                            console.log('✅ Barcode detected:', result.getText());
+                            showBarcodeResult(result.getText());
+                            updateStatus('Barcode detected!', 'detected');
+                            
+                            // Process barcode after a short delay
+                            setTimeout(() => {
+                                processBarcode(result.getText());
+                            }, 2000);
+                        }
+                        if (error && !(error instanceof ZXing.NotFoundException)) {
+                            console.error('❌ Scanning error:', error);
+                        }
+                    }
+                );
+                
+                updateStatus('Point camera at barcode', 'scanning');
+                console.log('✅ ZXing scanner started');
+                
+            } catch (error) {
+                console.error('❌ Scanner failed:', error);
+                updateStatus('Scanner Error', 'error');
+                alert('Failed to start camera. Please check permissions.');
+            }
+        }
+
+        function stopZXingScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            
+            // Stop ZXing scanner
+            if (codeReader) {
+                codeReader.reset();
+            }
+            
+            // Stop camera stream
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            overlay.classList.remove('active');
+            hideBarcodeResult();
+            console.log('🛑 ZXing scanner stopped');
+        }
+
+        function showBarcodeResult(barcode) {
+            document.getElementById('barcodeNumber').textContent = barcode;
+            document.getElementById('barcodeResult').classList.add('show');
+        }
+
+        function hideBarcodeResult() {
+            document.getElementById('barcodeResult').classList.remove('show');
+        }
+
+        function updateStatus(text, type) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.textContent = text;
+            indicator.className = `status-indicator ${type}`;
+        }
+
+        async function processBarcode(barcode) {
+            updateStatus('Processing barcode...', 'scanning');
+            
+            try {
+                if (!apisInitialized) {
+                    alert('APIs not initialized. Please refresh the page.');
+                    return;
+                }
+
+                console.log('🔍 Processing barcode:', barcode);
+                
+                // Step 1: Fetch product data
+                console.log('📦 Fetching product data...');
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Step 2: Analyze with Gemini
+                console.log('🤖 Analyzing with Gemini...');
+                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                console.log('✅ Carbon analysis:', carbonAnalysis);
+                
+                // Step 3: Display results
+                displayCarbonResults(productData, carbonAnalysis);
+                
+                // Stop scanner after successful analysis
+                stopZXingScanner();
+                
+            } catch (error) {
+                console.error('❌ Barcode processing failed:', error);
+                updateStatus('Processing failed', 'error');
+                alert(`Analysis failed: ${error.message}`);
+            }
+        }
+
+        function displayCarbonResults(productData, analysis) {
+            const modal = document.getElementById('resultsModal');
+            const content = document.getElementById('resultsContent');
+            
+            content.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3>${productData.name}</h3>
+                    <p style="color: #666; font-size: 14px;">${productData.brand} • ${productData.category}</p>
+                </div>
+                
+                <div class="carbon-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">${analysis.carbonFootprint.perUnit.toFixed(2)}</div>
+                        <div class="metric-label">kg CO₂ per unit</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" style="color: ${analysis.sustainabilityScore <= 60 ? '#ff4444' : analysis.sustainabilityScore <= 80 ? '#ffaa00' : '#4CAF50'}">${analysis.sustainabilityScore}</div>
+                        <div class="metric-label">sustainability score</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">🌍 Environmental Equivalent (per 1000 units)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.carbonFootprint.per1000Units.toFixed(2)}</div>
+                            <div style="font-size: 12px;">kg CO₂</div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.treesPer1000Units ? analysis.environmentalEquivalents.treesPer1000Units.toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">🌳 trees</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.milesDriven ? (analysis.environmentalEquivalents.milesDriven * 1000).toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">miles driven</div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; color: #4CAF50;">${analysis.environmentalEquivalents.waterInGallons ? (analysis.environmentalEquivalents.waterInGallons * 1000).toFixed(2) : 'N/A'}</div>
+                            <div style="font-size: 12px;">gallons of water</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">💡 Recommendations</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        ${analysis.recommendations.map(rec => `<li style="margin: 5px 0; font-size: 14px;">${rec}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 20px;">
+                    <h4 style="color: #4CAF50; margin-bottom: 10px;">📊 Analysis Summary</h4>
+                    <p style="font-size: 14px; line-height: 1.5;">
+                        <strong>Key Findings:</strong> ${analysis.analysis.keyFindings}<br>
+                        <strong>Strengths:</strong> ${analysis.analysis.strengths}<br>
+                        <strong>Concerns:</strong> ${analysis.analysis.concerns}
+                    </p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeResults() {
+            document.getElementById('resultsModal').classList.remove('active');
+        }
+
+        async function analyzeBarcode(manualBarcode) {
+            const input = document.getElementById('barcodeInput');
+            const btn = document.getElementById('analyzeBtn');
+            const barcode = manualBarcode || input.value.trim().replace(/\D/g, ''); // Remove non-digits
+            
+            if (!barcode) {
+                alert('Please enter a barcode number');
+                return;
+            }
+            
+            if (barcode.length < 8 || barcode.length > 14) {
+                alert('Please enter a valid barcode (8-14 digits)');
+                return;
+            }
+            
+            if (!apisInitialized) {
+                alert('APIs not initialized. Please refresh the page.');
+                return;
+            }
+            
+            // Update UI
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Analyzing...';
+            
+            try {
+                console.log('🔍 Analyzing barcode:', barcode);
+                
+                // Step 1: Fetch product data
+                console.log('📦 Fetching product data...');
+                const productData = await productAPI.getProductData(barcode);
+                console.log('✅ Product data:', productData);
+                
+                if (productData.error) {
+                    throw new Error(`Product lookup failed: ${productData.error}`);
+                }
+                
+                // Step 2: Analyze with Gemini
+                console.log('🤖 Analyzing with Gemini...');
+                const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
+                console.log('✅ Carbon analysis:', carbonAnalysis);
+                
+                // Step 3: Display results
+                displayCarbonResults(productData, carbonAnalysis);
+                
+            } catch (error) {
+                console.error('❌ Analysis failed:', error);
+                alert(`Analysis failed: ${error.message}`);
+            } finally {
+                // Reset UI
+                btn.disabled = false;
+                btn.innerHTML = 'Analyze Carbon Footprint';
+                input.focus(); // Focus back on input for next entry
+            }
+        }
+
+        function manualBarcodeInput() {
+            const barcode = prompt('Enter barcode number:');
+            if (barcode) {
+                processBarcode(barcode);
+            }
+        }
+
+        async function switchCamera() {
+            if (!codeReader) return;
+            
+            // Stop current scanner
+            codeReader.reset();
+            
+            // Switch camera mode
+            usingFrontCamera = !usingFrontCamera;
+            
+            // Restart scanner with new camera
+            await startZXingScanner();
+        }
+
+        // Allow Enter key to trigger analysis
+        document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeBarcode();
+            }
+        });
+
+        // Check if camera is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.warn('⚠️ Camera API not supported');
+        } else {
+            console.log('✅ Camera API supported for barcode scanning');
+        }
+    </script>
+</body>
+</html>

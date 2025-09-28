@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
-const http = require('http');
+const https = require('https'); // Changed from http to https
+const selfsigned = require('selfsigned'); // Added for certificate generation
 const dotenv = require('dotenv');
 
 // Try to load .env from the current directory first, then fall back to parent
@@ -17,7 +18,7 @@ if (result.error) {
 }
 
 const app = express();
-const PORT = 3000; // Using port 3000 for HTTP
+const PORT = 3000; // Keeping port 3000 for HTTPS
 
 // Add middleware for parsing JSON bodies
 app.use(express.json());
@@ -90,64 +91,50 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// Serve the AI-powered version as main
+// --- Your App Routes ---
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'ai-powered-version.html'));
 });
-
-// Serve the React Native Web version at /app
 app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, 'react-native-web.html'));
 });
-
-// Serve the barcode scanner at /barcode (HTTP optimized version)
 app.get('/barcode', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-scanner-http.html'));
 });
-
-// Serve the shopping mode version at /shopping
 app.get('/shopping', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-carbon-scanner.html'));
 });
-
-// API endpoint for handling shopping list data
-app.post('/api/shopping/analyze', express.json(), (req, res) => {
-    const { items } = req.body;
-    console.log('Analyzing shopping list:', items);
-    // Process the items and return aggregate analysis
-    res.json({
-        success: true,
-        items: items.length,
-        analysis: {
-            totalCarbonFootprint: 0,
-            totalWaterUsage: 0,
-            recommendations: []
-        }
-    });
-});
-
-// Serve the HTTPS camera version at /camera
 app.get('/camera', (req, res) => {
     res.sendFile(path.join(__dirname, 'barcode-carbon-scanner.html'));
 });
-
-// Serve the API test suite at /test
+app.get('/zxing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'zxing-barcode-scanner.html'));
+});
 app.get('/test', (req, res) => {
     res.sendFile(path.join(__dirname, 'api-test.html'));
 });
-
-// Serve the connection test at /debug
 app.get('/debug', (req, res) => {
     res.sendFile(path.join(__dirname, 'test-connection.html'));
 });
 
-// Create HTTP server (no SSL certificates needed)
-const server = http.createServer(app);
+
+// --- HTTPS Server Setup ---
+// Generate self-signed certificate
+const attrs = [{ name: 'commonName', value: 'localhost' }];
+const pems = selfsigned.generate(attrs, { days: 365 });
+
+const options = {
+    key: pems.private,
+    cert: pems.cert
+};
+
+// Create HTTPS server
+const server = https.createServer(options, app);
 
 server.listen(PORT, () => {
-    console.log(`🌐 CarbonLens HTTP Server running at http://localhost:${PORT}`);
-    console.log(`📱 For iPhone: http://YOUR_IP:${PORT}`);
+    console.log(`🌐 CarbonLens HTTPS Server running at https://localhost:${PORT}`);
+    console.log(`📱 For iPhone: https://YOUR_IP:${PORT}`);
     console.log(`🔑 API Key loaded from .env file`);
-    console.log(`📷 Note: Camera access may be limited on HTTP (HTTPS recommended for production)`);
-    console.log(`🚀 No SSL certificate issues - should work immediately!`);
+    console.log(`📷 Camera access is now enabled via HTTPS.`);
+    console.log(`❗️ IMPORTANT: You will see a browser warning. Click 'Advanced' and 'Proceed to localhost' to continue.`);
 });

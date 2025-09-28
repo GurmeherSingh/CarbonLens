@@ -71,6 +71,181 @@
             padding: 20px;
         }
 
+        .scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        .scanner-overlay.active {
+            display: flex;
+        }
+
+        .scanner-header {
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1001;
+        }
+
+        .close-scanner {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .scanner-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #scannerVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .barcode-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .scanning-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 150px;
+            border: 3px solid #4CAF50;
+            border-radius: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { border-color: #8BC34A; box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { border-color: #4CAF50; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .scanning-corners {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #4CAF50;
+        }
+
+        .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        .status-indicator {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-indicator.scanning {
+            background: rgba(255, 193, 7, 0.9);
+        }
+
+        .status-indicator.detected {
+            background: rgba(76, 175, 80, 0.9);
+        }
+
+        .barcode-result {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            width: 200px;
+            text-align: center;
+            display: none;
+        }
+
+        .barcode-result.show {
+            display: block;
+        }
+
+        .barcode-result h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .barcode-result p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .scanner-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1002;
+        }
+
+        .control-btn {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+            min-width: 160px;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .control-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
         .manual-input-section {
             background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
@@ -399,8 +574,13 @@
 
             <div class="manual-input-section">
                 <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
-                <h3>Enter Product Barcode</h3>
-                <p>Type or paste a product barcode for instant carbon analysis</p>
+                <h3>Scan or Enter Product Barcode</h3>
+                <p>Use camera to scan or type a product barcode for instant carbon analysis</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="analyze-btn" onclick="startZXingScanner()" style="flex: 1; background: rgba(255,255,255,0.3); border: 2px solid white;">
+                        📷 Scan with Camera
+                    </button>
+                </div>
                 <input type="text" class="barcode-input" id="barcodeInput" placeholder="Enter barcode (e.g., 3017620422003)" maxlength="14">
                 <button class="analyze-btn" onclick="analyzeBarcode()" id="analyzeBtn">Analyze Carbon Footprint</button>
             </div>
@@ -435,6 +615,39 @@
 
         </div>
 
+        <!-- Scanner Overlay -->
+        <div class="scanner-overlay" id="scannerOverlay">
+            <div class="scanner-header">
+                <h3>📱 ZXing Barcode Scanner</h3>
+                <button class="close-scanner" onclick="stopZXingScanner()">×</button>
+            </div>
+            
+            <div class="scanner-container">
+                <video id="scannerVideo" autoplay playsinline></video>
+                
+                <div class="barcode-overlay">
+                    <div class="scanning-frame">
+                        <div class="scanning-corners corner-tl"></div>
+                        <div class="scanning-corners corner-tr"></div>
+                        <div class="scanning-corners corner-bl"></div>
+                        <div class="scanning-corners corner-br"></div>
+                    </div>
+                    
+                    <div class="status-indicator" id="statusIndicator">Point at barcode</div>
+                    
+                    <div class="barcode-result" id="barcodeResult">
+                        <h4>Barcode Detected!</h4>
+                        <p id="barcodeNumber">1234567890</p>
+                    </div>
+                </div>
+
+                <div class="scanner-controls">
+                    <button class="control-btn" onclick="manualBarcodeInput()" id="manualBtn">Manual Input</button>
+                    <button class="control-btn" onclick="switchCamera()">Switch Camera</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Results Modal -->
         <div class="results-modal" id="resultsModal">
             <div class="results-content">
@@ -450,6 +663,9 @@
         </div>
     </div>
 
+    <!-- Include ZXing library -->
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    
     <!-- Include required libraries -->
     <script src="product-api.js" onerror="console.error('❌ Failed to load product-api.js')"></script>
     <script src="gemini-carbon-analyzer.js" onerror="console.error('❌ Failed to load gemini-carbon-analyzer.js')"></script>
@@ -463,6 +679,11 @@
         let apisInitialized = false;
         let currentMode = 'single';
         let shoppingList = [];
+        
+        // ZXing scanner variables
+        let codeReader = null;
+        let currentStream = null;
+        let usingFrontCamera = false;
         // Tree Animation Logic
         function showTreeProgress() {
             const container = document.getElementById('tree-progress-container');
@@ -823,7 +1044,9 @@
                 if (productData.error) {
                     throw new Error(`Product lookup failed: ${productData.error}`);
                 }
+                console.log('🔍 AnalyzeBarcode: Current mode is:', currentMode);
                 if (currentMode === 'shopping') {
+                    console.log('🛒 Adding to shopping list');
                     // Add to shopping list
                     shoppingList.push({
                         barcode,
@@ -834,6 +1057,7 @@
                     updateShoppingList();
                     input.value = ''; // Clear input after adding
                 } else {
+                    console.log('🔍 Single item mode: Starting Gemini analysis');
                     // Single item mode: Analyze with Gemini
                     console.log('🤖 Analyzing with Gemini...');
                     const carbonAnalysis = await geminiAnalyzer.analyzeCarbonFootprint(productData);
@@ -937,6 +1161,148 @@
                 analyzeBarcode();
             }
         });
+
+        // ZXing Scanner Functions
+        async function startZXingScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            overlay.classList.add('active');
+            
+            try {
+                // Initialize ZXing if not already done
+                if (!codeReader && typeof ZXing !== 'undefined') {
+                    codeReader = new ZXing.BrowserMultiFormatReader();
+                    console.log('✅ ZXing initialized');
+                } else if (!codeReader) {
+                    throw new Error('ZXing library not loaded');
+                }
+                
+                // Get available video devices
+                const videoInputDevices = await codeReader.listVideoInputDevices();
+                console.log('📹 Available cameras:', videoInputDevices);
+                
+                // Use back camera if available, otherwise use first available
+                const backCamera = videoInputDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear')
+                );
+                
+                const selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+                console.log('📷 Using camera:', selectedDeviceId);
+                
+                // Start decoding from video device
+                await codeReader.decodeFromVideoDevice(
+                    selectedDeviceId,
+                    document.getElementById('scannerVideo'),
+                    (result, error) => {
+                        if (result) {
+                            console.log('✅ Barcode detected:', result.getText());
+                            showBarcodeResult(result.getText());
+                            updateStatus('Barcode detected!', 'detected');
+                            
+                            // Process barcode after a short delay
+                            setTimeout(() => {
+                                processScannedBarcode(result.getText());
+                            }, 2000);
+                        }
+                        if (error && !(error instanceof ZXing.NotFoundException)) {
+                            console.error('❌ Scanning error:', error);
+                        }
+                    }
+                );
+                
+                updateStatus('Point camera at barcode', 'scanning');
+                console.log('✅ ZXing scanner started');
+                
+            } catch (error) {
+                console.error('❌ Scanner failed:', error);
+                updateStatus('Scanner Error', 'error');
+                alert('Failed to start camera. Please check permissions.');
+            }
+        }
+
+        function stopZXingScanner() {
+            const overlay = document.getElementById('scannerOverlay');
+            
+            // Stop ZXing scanner
+            if (codeReader) {
+                codeReader.reset();
+            }
+            
+            // Stop camera stream
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            overlay.classList.remove('active');
+            hideBarcodeResult();
+            console.log('🛑 ZXing scanner stopped');
+        }
+
+        function showBarcodeResult(barcode) {
+            document.getElementById('barcodeNumber').textContent = barcode;
+            document.getElementById('barcodeResult').classList.add('show');
+        }
+
+        function hideBarcodeResult() {
+            document.getElementById('barcodeResult').classList.remove('show');
+        }
+
+        function updateStatus(text, type) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.textContent = text;
+            indicator.className = `status-indicator ${type}`;
+        }
+
+        async function processScannedBarcode(barcode) {
+            updateStatus('Processing barcode...', 'scanning');
+            
+            try {
+                // Auto-fill the barcode input
+                document.getElementById('barcodeInput').value = barcode;
+                
+                // Stop scanner immediately to show the analysis process
+                stopZXingScanner();
+                
+                // Force single mode for scanner analysis
+                const originalMode = currentMode;
+                currentMode = 'single';
+                console.log('🔍 Scanner: Forcing single mode for analysis');
+                console.log('🔍 Scanner: Current mode set to:', currentMode);
+                
+                // Use the existing analyzeBarcode function to start analysis
+                await analyzeBarcode(barcode);
+                
+                // Restore original mode
+                currentMode = originalMode;
+                console.log('🔍 Scanner: Restored mode to:', currentMode);
+                
+            } catch (error) {
+                console.error('❌ Barcode processing failed:', error);
+                updateStatus('Processing failed', 'error');
+                alert(`Analysis failed: ${error.message}`);
+            }
+        }
+
+        function manualBarcodeInput() {
+            const barcode = prompt('Enter barcode number:');
+            if (barcode) {
+                processScannedBarcode(barcode);
+            }
+        }
+
+        async function switchCamera() {
+            if (!codeReader) return;
+            
+            // Stop current scanner
+            codeReader.reset();
+            
+            // Switch camera mode
+            usingFrontCamera = !usingFrontCamera;
+            
+            // Restart scanner with new camera
+            await startZXingScanner();
+        }
     </script>
 </body>
 </html>
