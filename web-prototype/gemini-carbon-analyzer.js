@@ -217,10 +217,17 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
             ).slice(0, 3);
             
             // Recalculate sustainability score based on actual CO2 and water data
-            analysis.sustainabilityScore = this.calculateSustainabilityScoreFromData(
-                analysis.carbonFootprint.perUnit,
-                analysis.waterUsage.perUnit
-            );
+            const carbonFootprint = analysis.carbonFootprint.perUnit || 0;
+            const waterUsage = analysis.waterUsage.perUnit || 0;
+            
+            // Calculate score based on CO2 emissions (lower = better)
+            let co2Score = Math.max(0, 100 - (carbonFootprint * 20));
+            
+            // Calculate score based on water usage (lower = better)
+            const waterScore = Math.max(0, 100 - (waterUsage / 10));
+            
+            // Average CO2 and water scores
+            analysis.sustainabilityScore = Math.round(Math.max(0, Math.min(100, (co2Score + waterScore) / 2)));
             
             // Add metadata
             analysis.metadata = {
@@ -376,26 +383,6 @@ Return this exact JSON structure with REALISTIC estimates within the ranges abov
         return Math.round(Math.max(0, Math.min(100, score)));
     }
 
-    /**
-     * Calculate sustainability score from actual CO2 and water data
-     * @param {number} carbonFootprint - CO2 per unit (kg)
-     * @param {number} waterUsage - Water per unit (liters)
-     * @returns {number} Sustainability score (0-100)
-     */
-    calculateSustainabilityScoreFromData(carbonFootprint, waterUsage) {
-        // Calculate score based on CO2 emissions (lower = better)
-        // Scale: 0-5 kg CO2 maps to 100-0 score
-        let co2Score = Math.max(0, 100 - (carbonFootprint * 20));
-        
-        // Calculate score based on water usage (lower = better)
-        const waterScore = Math.max(0, 100 - (waterUsage / 10)); // Scale water usage
-        
-        // Average CO2 and water scores
-        let score = (co2Score + waterScore) / 2;
-        
-        // Round to nearest integer
-        return Math.round(Math.max(0, Math.min(100, score)));
-    }
 }
 
 // Export for use in other modules

@@ -878,7 +878,7 @@
                         <div class="metric-label">kg CO₂ per unit</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">${analysis.sustainabilityScore}</div>
+                        <div class="metric-value" style="color: ${analysis.sustainabilityScore <= 60 ? '#ff4444' : analysis.sustainabilityScore <= 80 ? '#ffaa00' : '#4CAF50'}">${analysis.sustainabilityScore}</div>
                         <div class="metric-label">sustainability score</div>
                     </div>
                 </div>
