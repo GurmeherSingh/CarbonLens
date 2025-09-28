@@ -1,3 +1,5 @@
+# 🏆 Winner of MLH Track: Best Use of MongoDB Atlas at GirlHacks 2025
+
 # 🌱 CarbonLens: Sustainable Shopping in AR  
 
 CarbonLens is an **AR-powered app** that makes environmental impact visible while you shop. Point your camera at products to see **carbon footprint, water usage, food miles, and packaging impact** in real time.  
